@@ -13,6 +13,9 @@ const SRC_DIR = 'src';
 const ACTIONS_FILE = 'src/store/actions.ts';
 const COMMANDS_FILE = 'src/store/commands.ts';
 const COMMANDS_FUNCTION = 'actionToCommand';
+const SOCKET_FILE = 'src/store/socket.ts';
+// {abs} {path} {line} {sha}; for GitHub: https://github.com/<org>/<repo>/blob/{sha}/{path}#L{line}
+const SOURCE_LINK = process.env.SOURCE_LINK ?? 'vscode://file/{abs}:{line}';
 const DIFF_BASE = process.env.DIFF_BASE ?? 'main';
 const STAGES = ['component', 'handler', 'action', 'command', 'socket'];
 
@@ -120,12 +123,21 @@ function buildDiff(coverage, baseSha) {
       file.lines.push({ type: '+', newNo, text, ...lineCoverage(coverage[file.path], newNo, text) });
       newNo += 1;
     } else if (line[0] === '-') {
-      file.lines.push({ type: '-', oldNo: oldNo++, text: line.slice(1) });
+      file.lines.push({ type: '-', oldNo: oldNo++, near: newNo, text: line.slice(1) });
     } else if (line[0] === ' ') {
       file.lines.push({ type: ' ', oldNo: oldNo++, newNo: newNo++, text: line.slice(1) });
     }
   }
   return files;
+}
+
+function changedLines(diff) {
+  const changed = {};
+  for (const file of diff) {
+    const lines = file.lines.filter((line) => line.type === '+' || line.type === '-');
+    changed[file.path] = lines.map((line) => line.newNo ?? line.near);
+  }
+  return changed;
 }
 
 // ---------- static flow analysis: call site -> action -> command ----------
@@ -148,11 +160,12 @@ function functionName(fn, source) {
 // ponytail: assumes `if (<creator> ...) { return { topic: '...' } }` inside actionToCommand; a lookup-table mapping needs its own reader here
 function findCommands() {
   const actionsSource = parse(ACTIONS_FILE);
-  const creators = [];
+  const creators = {};
+  const lineOf = (source, node) => source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
   const collectCreators = (node) => {
     const init = ts.isVariableDeclaration(node) && node.initializer;
     if (init && ts.isCallExpression(init) && init.expression.getText(actionsSource) === 'createAction') {
-      creators.push(node.name.getText(actionsSource));
+      creators[node.name.getText(actionsSource)] = lineOf(actionsSource, node);
     }
     ts.forEachChild(node, collectCreators);
   };
@@ -164,15 +177,16 @@ function findCommands() {
     if (ts.isFunctionDeclaration(node) && node.name?.text === COMMANDS_FUNCTION) inside = true;
     if (inside && ts.isIfStatement(node)) {
       const condition = node.expression.getText(source);
-      const action = creators.find((name) => new RegExp(`\\b${name}\\b`).test(condition));
+      const action = Object.keys(creators).find((name) => new RegExp(`\\b${name}\\b`).test(condition));
       const topic = node.thenStatement.getText(source).match(/topic:\s*['"`]([^'"`]+)/)?.[1];
-      let line = source.getLineAndCharacterOfPosition(node.thenStatement.getStart(source)).line + 1;
+      let line = lineOf(source, node.thenStatement);
       const findReturn = (child) => {
-        if (ts.isReturnStatement(child)) line = source.getLineAndCharacterOfPosition(child.getStart(source)).line + 1;
+        if (ts.isReturnStatement(child)) line = lineOf(source, child);
         else ts.forEachChild(child, findReturn);
       };
       findReturn(node.thenStatement);
-      if (action && topic) commands[action] = { topic, line };
+      const end = source.getLineAndCharacterOfPosition(node.getEnd()).line + 1;
+      if (action && topic) commands[action] = { topic, line, start: lineOf(source, node), end, actionLine: creators[action] };
     }
     ts.forEachChild(node, (child) => visit(child, inside));
   };
@@ -204,8 +218,10 @@ function findCallSites(commands) {
           column: character,
           action: node.expression.text,
           place: place?.name ?? path.basename(file),
+          placeLine: place ? position(place.fn).line + 1 : 1,
           handler: handler && handler !== place ? handler.name : '(body)',
           handlerLine: handler ? position(handler.fn).line + 1 : line + 1,
+          handlerEnd: handler ? source.getLineAndCharacterOfPosition(handler.fn.getEnd()).line + 1 : line + 1,
         });
       }
       ts.forEachChild(node, (child) => visit(child, functions));
@@ -215,7 +231,8 @@ function findCallSites(commands) {
   return sites;
 }
 
-function buildFlows(coverage, runs) {
+function buildFlows(coverage, runs, changed) {
+  const touched = (file, from, to) => !!changed[file]?.some((line) => line >= from && line <= to);
   const commands = findCommands();
   const everyTest = runs.map((_, index) => index);
   return findCallSites(commands).map((site, id) => {
@@ -239,7 +256,16 @@ function buildFlows(coverage, runs) {
       return { name: STAGES[index], tests: alive };
     });
     const status = stages.at(-1).tests.length ? 'covered' : stages[1].tests.length ? 'partial' : 'uncovered';
-    return { id, ...site, topic: command.topic, status, stages };
+    const reason = touched(site.file, site.line, site.line)
+      ? 'call site changed'
+      : touched(site.file, site.handlerLine, site.handlerEnd)
+        ? 'handler changed'
+        : touched(COMMANDS_FILE, command.start, command.end)
+          ? 'command mapping changed'
+          : changed[site.file]
+            ? 'file changed'
+            : null;
+    return { id, ...site, topic: command.topic, actionLine: command.actionLine, commandLine: command.line, changed: reason, status, stages };
   });
 }
 
@@ -281,7 +307,7 @@ function summaryMarkdown(data) {
     const last = flow.stages.findLast((stage) => stage.tests.length)?.name ?? 'none';
     out.push(`| \`${flow.place}\` › \`${flow.handler}\` (${flow.file}:${flow.line}) | \`${flow.action}\` | \`${flow.topic}\` | ${last} |`);
   }
-  out.push('', '### Tests', '', ...data.tests.map((test, index) => `- **T${index + 1}** ${test.name} (\`${test.file}\`, ${test.status})`), '');
+  out.push('', '### Tests', '', ...data.tests.map((test, index) => `- **T${index + 1}** ${test.name} (\`${test.file}:${test.line}\`, ${test.status})`), '');
   return out.join('\n');
 }
 
@@ -292,17 +318,28 @@ export async function generate() {
     generatedAt: new Date().toISOString(),
     base: DIFF_BASE,
     head: '(no git)',
+    sha: '',
+    root: ROOT,
+    linkTemplate: SOURCE_LINK,
+    actionsFile: ACTIONS_FILE,
+    commandsFile: COMMANDS_FILE,
+    socket: {
+      file: SOCKET_FILE,
+      line: fs.readFileSync(path.join(ROOT, SOCKET_FILE), 'utf8').split('\n').findIndex((line) => line.includes('.send(')) + 1,
+    },
     stages: STAGES,
-    tests: runs.map(({ name, file, status }) => ({ name, file, status })),
+    tests: runs.map(({ name, file, line, status }) => ({ name, file, line, status })),
     diff: [],
-    flows: buildFlows(coverage, runs),
+    flows: [],
   };
   try {
     data.head = git('rev-parse --abbrev-ref HEAD');
+    data.sha = git('rev-parse HEAD');
     data.diff = buildDiff(coverage, git(`merge-base ${DIFF_BASE} HEAD`));
   } catch {
     data.diffError = `Cannot diff against "${DIFF_BASE}". Set DIFF_BASE to an existing ref.`;
   }
+  data.flows = buildFlows(coverage, runs, changedLines(data.diff));
   const template = fs.readFileSync(new URL('./report-template.html', import.meta.url), 'utf8');
   const json = JSON.stringify(data).replaceAll('<', '\\u003c');
   fs.mkdirSync(OUT_DIR, { recursive: true });

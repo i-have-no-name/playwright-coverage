@@ -13,6 +13,14 @@ function SubHeader(props: any) {
       >
         handle click
       </button>
+
+      <button
+        onClick={() => {
+          props.onClick();
+        }}
+      >
+        handle click
+      </button>
     </div>
   );
 }

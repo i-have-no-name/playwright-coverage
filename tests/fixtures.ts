@@ -27,6 +27,7 @@ export const test = base.extend<{ collectCoverage: void }>({
         JSON.stringify({
           name: testInfo.title,
           file: path.relative(process.cwd(), testInfo.file),
+          line: testInfo.line,
           status: testInfo.status,
           ...collected,
         }),

@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Change coverage</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --page: #f4f3ef; --surface: #fcfcfb; --text: #0b0b0b; --text-2: #52514e; --line: #e1e0d9;
+    --good: #0ca30c; --warn: #fab219; --crit: #d03b3b;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --page: #111110; --surface: #1a1a19; --text: #f0efec; --text-2: #c3c2b7; --line: #2c2c2a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text); font: 14px/1.45 system-ui, sans-serif; }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 22px; margin: 0 0 2px; }
+  .muted { color: var(--text-2); }
+  code, .mono { font-family: var(--mono); font-size: 12.5px; }
+  .covered { --s: var(--good); } .partial { --s: var(--warn); } .uncovered { --s: var(--crit); } .neutral { --s: var(--line); }
+  .glyph { color: var(--s); font-weight: 700; display: inline-block; width: 1.2em; text-align: center; }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 20px 0; }
+  .kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
+  .kpi b { display: block; font-size: 26px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+  .meter { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; margin-top: 8px; }
+  .meter i { display: block; height: 100%; background: var(--good); border-radius: 3px; }
+
+  [role=tablist] { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 16px; }
+  [role=tab] { font: inherit; color: var(--text-2); background: none; border: 0; border-bottom: 2px solid transparent; padding: 10px 14px; cursor: pointer; }
+  [role=tab][aria-selected=true] { color: var(--text); border-bottom-color: var(--text); font-weight: 600; }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; margin-bottom: 12px; overflow: hidden; }
+  .card > summary { display: flex; align-items: center; gap: 12px; padding: 10px 14px; cursor: pointer; flex-wrap: wrap; }
+  .card > summary .meter { width: 120px; margin: 0 0 0 auto; }
+  .scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; }
+
+  .diff td { padding: 0 8px; font-family: var(--mono); font-size: 12.5px; white-space: pre; vertical-align: top; line-height: 20px; }
+  .diff .no { color: var(--text-2); text-align: right; user-select: none; width: 1%; }
+  .diff .code { width: 100%; }
+  .diff .hunk td { color: var(--text-2); background: var(--page); }
+  .diff .del .code { color: var(--text-2); text-decoration: line-through; text-decoration-color: var(--line); }
+  .diff tr.add:not(.neutral) .code, .diff tr.add:not(.neutral) .mark { background: color-mix(in srgb, var(--s) 13%, transparent); }
+  .diff tr.add:not(.neutral) { cursor: pointer; }
+  .diff tr.add:not(.neutral):hover .code { background: color-mix(in srgb, var(--s) 24%, transparent); }
+  .diff .count { color: var(--text-2); text-align: right; font-family: system-ui, sans-serif; }
+  .detail td { white-space: normal !important; font-family: system-ui, sans-serif !important; padding: 8px 14px 10px !important; border-left: 3px solid var(--s); background: var(--page); }
+  .detail ul { margin: 4px 0 0; padding-left: 18px; }
+
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; margin: 0 0 10px; }
+  svg text { fill: var(--text); font: 12px system-ui, sans-serif; }
+  svg .col-title { fill: var(--text-2); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+  svg .node rect { fill: var(--surface); stroke: var(--s); stroke-width: 1.5; }
+  svg .node .g { fill: var(--s); font-weight: 700; }
+  svg .node .ratio { fill: var(--text-2); font-size: 11px; }
+  svg .edge .v { fill: none; stroke: var(--s); stroke-width: 1.5; opacity: .75; }
+  svg .edge .hit { fill: none; stroke: transparent; stroke-width: 12; }
+  svg .uncovered rect, svg .uncovered .v { stroke-dasharray: 4 3; }
+  svg .node, svg .edge { cursor: pointer; transition: opacity .12s; }
+  svg .edge:hover .v { stroke-width: 3; opacity: 1; }
+  svg .node:hover rect { stroke-width: 2.5; }
+  svg .dim { opacity: .12; }
+
+  .bar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 14px 0 10px; }
+  .chip { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+  .chip[aria-pressed=true] { border-color: var(--text); font-weight: 600; }
+  .flows th { text-align: left; font-weight: 600; color: var(--text-2); font-size: 12px; padding: 8px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  .flows td { padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .flows tr.flow { cursor: pointer; }
+  .flows tr.flow:hover td { background: var(--page); }
+  .stage { display: inline-block; border: 1px solid var(--s); border-radius: 4px; padding: 0 6px 0 2px; margin: 0 4px 2px 0; font-size: 12px; white-space: nowrap; }
+  .uncovered.stage { border-style: dashed; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Change coverage</h1>
+  <div class="muted" id="sub"></div>
+  <div class="kpis" id="kpis"></div>
+  <div role="tablist">
+    <button role="tab" id="t-diff" aria-selected="true">Diff coverage</button>
+    <button role="tab" id="t-flows" aria-selected="false">Flow coverage</button>
+  </div>
+  <section id="p-diff"></section>
+  <section id="p-flows" hidden>
+    <div class="legend muted">
+      <span><span class="glyph covered">✓</span> every flow through it gets this far</span>
+      <span><span class="glyph partial">◐</span> some flows do</span>
+      <span><span class="glyph uncovered">✕</span> no test gets this far (dashed)</span>
+      <span>Click a node or edge to filter the table below.</span>
+    </div>
+    <div class="card scroll"><svg id="graph" role="img" aria-label="Flow graph: component, handler, action, command, socket"></svg></div>
+    <div class="bar" id="bar"></div>
+    <div class="card scroll"><table class="flows" id="flows"></table></div>
+  </section>
+</div>
+<script id="data" type="application/json">__DATA__</script>
+<script>
+const DATA = JSON.parse(document.getElementById('data').textContent);
+const GLYPH = { covered: '✓', partial: '◐', uncovered: '✕', neutral: '' };
+const WORD = { covered: 'Covered', partial: 'Partly covered', uncovered: 'Not covered' };
+const SVG = 'http://www.w3.org/2000/svg';
+
+function h(tag, props = {}, ...children) {
+  const node = tag === 'svg' || props.svg ? document.createElementNS(SVG, tag) : document.createElement(tag);
+  for (const [key, value] of Object.entries(props)) {
+    if (key === 'svg' || value == null || value === false) continue;
+    if (key.startsWith('on')) node.addEventListener(key.slice(2), value);
+    else node.setAttribute(key, value);
+  }
+  node.append(...children.flat().filter((child) => child != null && child !== false));
+  return node;
+}
+const s = (tag, props, ...children) => h(tag, { ...props, svg: true }, ...children);
+const glyph = (status) => h('span', { class: `glyph ${status}`, 'aria-hidden': 'true' }, GLYPH[status]);
+const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
+const testList = (tests) =>
+  h('ul', {}, tests.map((index) => h('li', {}, DATA.tests[index].name, h('span', { class: 'muted' }, ` · ${DATA.tests[index].file}`))));
+
+// ---------- header ----------
+const changed = DATA.diff.flatMap((file) => file.lines.filter((line) => line.type === '+' && line.status !== 'neutral'));
+const changedCovered = changed.filter((line) => line.status === 'covered').length;
+const flowsCovered = DATA.flows.filter((flow) => flow.status === 'covered').length;
+const flowsPartial = DATA.flows.filter((flow) => flow.status === 'partial').length;
+const failed = DATA.tests.filter((test) => test.status !== 'passed').length;
+const meter = (part, total) => h('div', { class: 'meter' }, h('i', { style: `width:${total ? (part / total) * 100 : 0}%` }));
+
+document.getElementById('sub').append(
+  h('code', {}, DATA.head), ' compared with ', h('code', {}, DATA.base), ` · generated ${new Date(DATA.generatedAt).toLocaleString()}`);
+document.getElementById('kpis').append(
+  h('div', { class: 'kpi' }, h('span', { class: 'muted' }, 'Playwright tests'), h('b', {}, `${DATA.tests.length - failed} passed`),
+    h('span', { class: 'muted' }, failed ? `${failed} failed` : 'none failed')),
+  h('div', { class: 'kpi' }, h('span', { class: 'muted' }, 'Changed lines executed by a test'), h('b', {}, `${changedCovered} / ${changed.length}`),
+    meter(changedCovered, changed.length)),
+  h('div', { class: 'kpi' }, h('span', { class: 'muted' }, 'Flows reaching the socket'), h('b', {}, `${flowsCovered} / ${DATA.flows.length}`),
+    meter(flowsCovered, DATA.flows.length), h('span', { class: 'muted' }, `${plural(flowsPartial, 'flow')} stop halfway`)),
+);
+
+for (const name of ['diff', 'flows']) {
+  document.getElementById(`t-${name}`).addEventListener('click', () => {
+    for (const other of ['diff', 'flows']) {
+      document.getElementById(`t-${other}`).setAttribute('aria-selected', other === name);
+      document.getElementById(`p-${other}`).hidden = other !== name;
+    }
+  });
+}
+
+// ---------- tab 1: diff ----------
+function toggleDetail(row, status, content) {
+  if (row.nextSibling?.classList.contains('detail')) return row.nextSibling.remove();
+  row.after(h('tr', { class: `detail ${status}` }, h('td', { colspan: 6 }, content)));
+}
+
+function lineDetail(line) {
+  if (!line.tests.length) return 'No test executes this line.';
+  const lead = line.status === 'partial' ? 'Only part of this line runs. Executed by' : 'Executed by';
+  return [`${lead} ${plural(line.tests.length, 'test')}:`, testList(line.tests)];
+}
+
+function diffRow(line) {
+  if (line.type === '@') return h('tr', { class: 'hunk' }, h('td', { colspan: 5 }, line.text));
+  if (line.type !== '+') {
+    return h('tr', { class: line.type === '-' ? 'del' : '' }, h('td', { class: 'no' }, line.oldNo ?? ''), h('td', { class: 'no' }, line.newNo ?? ''),
+      h('td', {}, line.type === '-' ? '-' : ''), h('td', { class: 'code' }, line.text), h('td', {}));
+  }
+  const live = line.status !== 'neutral';
+  const row = h('tr', { class: `add ${line.status}`, tabindex: live ? 0 : null, title: live ? WORD[line.status] : null },
+    h('td', { class: 'no' }), h('td', { class: 'no' }, line.newNo),
+    h('td', { class: 'mark' }, live ? glyph(line.status) : '+'), h('td', { class: 'code' }, line.text),
+    h('td', { class: 'count' }, live ? (line.tests.length ? plural(line.tests.length, 'test') : 'no tests') : ''));
+  if (live) {
+    const open = () => toggleDetail(row, line.status, lineDetail(line));
+    row.addEventListener('click', open);
+    row.addEventListener('keydown', (event) => event.key === 'Enter' && open());
+  }
+  return row;
+}
+
+const diffPanel = document.getElementById('p-diff');
+if (DATA.diffError) diffPanel.append(h('p', {}, DATA.diffError));
+else if (!DATA.diff.length) diffPanel.append(h('p', { class: 'muted' }, 'No source changes against the base.'));
+for (const file of DATA.diff) {
+  const lines = file.lines.filter((line) => line.type === '+' && line.status !== 'neutral');
+  const covered = lines.filter((line) => line.status === 'covered').length;
+  const status = !lines.length ? 'neutral' : covered === lines.length ? 'covered' : covered ? 'partial' : 'uncovered';
+  diffPanel.append(h('details', { class: 'card', open: '' },
+    h('summary', {}, glyph(status), h('code', {}, file.path),
+      h('span', { class: 'muted' }, lines.length ? `${covered} of ${lines.length} changed lines covered` : 'no executable changes'),
+      meter(covered, lines.length)),
+    h('div', { class: 'scroll' }, h('table', { class: 'diff' }, file.lines.map(diffRow)))));
+}
+
+// ---------- tab 2: flows ----------
+const COLUMNS = [
+  { title: 'Component / place', x: 0, width: 150 },
+  { title: 'Handler / effect', x: 230, width: 200 },
+  { title: 'Action', x: 560, width: 150 },
+  { title: 'Command', x: 790, width: 160 },
+  { title: 'Socket', x: 1030, width: 120 },
+];
+const ROW = 30, BOX = 22, TOP = 34;
+const nodes = new Map();
+const edges = new Map();
+for (const flow of DATA.flows) {
+  const path = [
+    [`p:${flow.file}:${flow.place}`, flow.place, flow.file],
+    [`h:${flow.file}:${flow.handlerLine}`, `${flow.handler} :${flow.handlerLine}`, `${flow.file}:${flow.handlerLine}`],
+    [`a:${flow.action}`, flow.action, 'redux action'],
+    [`c:${flow.topic}`, flow.topic, 'socket command topic'],
+    ['s', 'WebSocket', 'socket.send'],
+  ];
+  path.forEach(([id, label, hint], column) => {
+    if (!nodes.has(id)) nodes.set(id, { id, label, hint, column, flows: [] });
+    nodes.get(id).flows.push(flow);
+    if (!column) return;
+    const key = `${path[column - 1][0]}>${id}`;
+    if (!edges.has(key)) edges.set(key, { from: path[column - 1][0], to: id, column, flows: [] });
+    edges.get(key).flows.push(flow);
+  });
+}
+// an element is covered when every flow passing through it gets that far in some test
+const reach = (flows, stage) => {
+  const hit = flows.filter((flow) => flow.stages[stage].tests.length).length;
+  return hit === flows.length ? 'covered' : hit ? 'partial' : 'uncovered';
+};
+const byColumn = COLUMNS.map((_, column) => [...nodes.values()].filter((node) => node.column === column));
+const height = TOP + byColumn[1].length * ROW + 8;
+byColumn[1].forEach((node, index) => (node.y = TOP + index * ROW));
+for (const node of byColumn[0]) {
+  const ys = edgesFrom(node.id).map((edge) => nodes.get(edge.to).y);
+  node.y = ys.reduce((sum, y) => sum + y, 0) / ys.length;
+}
+for (const column of [2, 3, 4]) {
+  byColumn[column].forEach((node, index) => (node.y = TOP + ((index + 0.5) * (height - TOP)) / byColumn[column].length - BOX / 2));
+}
+function edgesFrom(id) { return [...edges.values()].filter((edge) => edge.from === id); }
+
+let selection = null;
+let statusFilter = 'all';
+const graph = document.getElementById('graph');
+graph.setAttribute('viewBox', `-8 0 1170 ${height}`);
+graph.setAttribute('style', 'min-width:960px;width:100%;display:block;padding:8px');
+graph.addEventListener('click', () => select(null));
+const pick = (item, label) => (event) => { event.stopPropagation(); select({ ids: new Set(item.flows.map((flow) => flow.id)), label }); };
+
+COLUMNS.forEach((column) => graph.append(s('text', { class: 'col-title', x: column.x, y: 14 }, column.title)));
+for (const edge of edges.values()) {
+  const from = nodes.get(edge.from), to = nodes.get(edge.to);
+  const x1 = COLUMNS[from.column].x + COLUMNS[from.column].width, x2 = COLUMNS[to.column].x;
+  const y1 = from.y + BOX / 2, y2 = to.y + BOX / 2, mid = (x1 + x2) / 2;
+  const d = `M${x1},${y1} C${mid},${y1} ${mid},${y2} ${x2},${y2}`;
+  edge.el = s('g', { class: `edge ${reach(edge.flows, edge.column)}`, onclick: pick(edge, `${from.label} → ${to.label}`) },
+    s('title', {}, `${from.label} → ${to.label}: ${plural(edge.flows.length, 'flow')}`), s('path', { class: 'v', d }), s('path', { class: 'hit', d }));
+  graph.append(edge.el);
+}
+for (const node of nodes.values()) {
+  const column = COLUMNS[node.column];
+  const status = reach(node.flows, node.column);
+  const done = node.flows.filter((flow) => flow.status === 'covered').length;
+  node.el = s('g', { class: `node ${status}`, transform: `translate(${column.x},${node.y})`, onclick: pick(node, node.label) },
+    s('title', {}, `${node.label} (${node.hint}): ${done} of ${plural(node.flows.length, 'flow')} reach the socket`),
+    s('rect', { width: column.width, height: BOX, rx: 5 }),
+    s('text', { class: 'g', x: 8, y: 15 }, GLYPH[status]),
+    s('text', { x: 24, y: 15 }, node.label),
+    s('text', { class: 'ratio', x: column.width - 8, y: 15, 'text-anchor': 'end' }, `${done}/${node.flows.length}`));
+  graph.append(node.el);
+}
+
+function select(next) {
+  selection = next;
+  for (const item of [...nodes.values(), ...edges.values()]) {
+    item.el.classList.toggle('dim', !!selection && !item.flows.some((flow) => selection.ids.has(flow.id)));
+  }
+  renderTable();
+}
+
+function flowDetail(flow) {
+  const broken = flow.stages.findIndex((stage) => !stage.tests.length);
+  if (broken === -1) return [`Reaches the socket in ${plural(flow.stages[4].tests.length, 'test')}:`, testList(flow.stages[4].tests)];
+  if (broken === 0) return 'No test runs this code at all.';
+  const last = flow.stages[broken - 1];
+  const everyTest = last.tests.length === DATA.tests.length;
+  return [`Gets as far as "${last.name}" but never reaches "${flow.stages[broken].name}". `,
+    everyTest ? `All ${DATA.tests.length} tests get that far.` : `${plural(last.tests.length, 'test')} get that far:`,
+    everyTest ? null : testList(last.tests)];
+}
+
+function renderTable() {
+  const counts = { all: DATA.flows.length };
+  for (const flow of DATA.flows) counts[flow.status] = (counts[flow.status] ?? 0) + 1;
+  document.getElementById('bar').replaceChildren(
+    ...['all', 'covered', 'partial', 'uncovered'].map((status) =>
+      h('button', { class: 'chip', 'aria-pressed': statusFilter === status, onclick: () => { statusFilter = status; renderTable(); } },
+        `${status === 'all' ? 'All flows' : WORD[status]} (${counts[status] ?? 0})`)),
+    selection && h('span', { class: 'muted' }, ` through ${selection.label} `),
+    selection && h('button', { class: 'chip', onclick: () => select(null) }, 'Clear selection'));
+  const rows = DATA.flows
+    .filter((flow) => (statusFilter === 'all' || flow.status === statusFilter) && (!selection || selection.ids.has(flow.id)))
+    .map((flow) => {
+      const row = h('tr', { class: 'flow', tabindex: 0 },
+        h('td', { style: 'white-space:nowrap' }, glyph(flow.status), WORD[flow.status]),
+        h('td', {}, h('b', {}, flow.place), ` › ${flow.handler}`, h('div', { class: 'muted mono' }, `${flow.file}:${flow.line}`)),
+        h('td', {}, h('code', {}, flow.action)),
+        h('td', {}, h('code', {}, flow.topic)),
+        h('td', {}, flow.stages.map((stage) => {
+          const status = stage.tests.length ? 'covered' : 'uncovered';
+          return h('span', { class: `stage ${status}` }, glyph(status), stage.name);
+        })),
+        h('td', { class: 'muted', style: 'white-space:nowrap' }, plural(flow.stages[4].tests.length, 'test')));
+      const open = () => toggleDetail(row, flow.status, flowDetail(flow));
+      row.addEventListener('click', open);
+      row.addEventListener('keydown', (event) => event.key === 'Enter' && open());
+      return row;
+    });
+  document.getElementById('flows').replaceChildren(
+    h('tr', {}, ['Status', 'Origin', 'Action', 'Command', 'How far tests get', 'End to end'].map((title) => h('th', {}, title))),
+    ...(rows.length ? rows : [h('tr', {}, h('td', { colspan: 6, class: 'muted' }, 'No flows match.'))]));
+}
+renderTable();
+</script>
+</body>
+</html>

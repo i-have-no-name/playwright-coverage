@@ -1,0 +1,29 @@
+{
+  "name": "int-test-fabel",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server.mjs & vite",
+    "test:e2e": "playwright test",
+    "report": "node scripts/report.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@reduxjs/toolkit": "^2.14.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-redux": "^9.3.1",
+    "ws": "^8.23.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "istanbul-lib-coverage": "^3.2.2",
+    "istanbul-lib-source-maps": "^5.0.6",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.8",
+    "vite-plugin-istanbul": "^9.0.1"
+  }
+}

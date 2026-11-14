@@ -1,7 +1,7 @@
 import { joinRoom, leaveRoom, refresh, sendMessage, setStatus } from '../store/actions';
 import { useAppDispatch, useAppSelector } from '../store/store';
 
-const ROOMS = ['lobby', 'support'];
+const ROOMS = ['lobby', 'support', 'random'];
 
 export function Sidebar() {
   const dispatch = useAppDispatch();

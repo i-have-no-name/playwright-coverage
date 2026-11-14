@@ -9,6 +9,9 @@ export function Header() {
   const status = useAppSelector((state) => state.status);
 
   const handleLeave = () => {
+    if (!room) {
+      return;
+    }
     dispatch(leaveRoom());
   };
 

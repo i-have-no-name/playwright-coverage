@@ -5,7 +5,10 @@ export type Command = { topic: string; payload: Record<string, unknown> };
 
 export function actionToCommand(action: UnknownAction): Command | null {
   if (sendMessage.match(action)) {
-    return { topic: 'message.send', payload: { text: action.payload } };
+    return {
+      topic: 'message.send',
+      payload: { text: action.payload.trim(), sentAt: Date.now() },
+    };
   }
 
   if (joinRoom.match(action)) {

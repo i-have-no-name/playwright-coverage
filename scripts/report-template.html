@@ -88,9 +88,11 @@
   <section id="p-diff"></section>
   <section id="p-flows" hidden>
     <div class="legend muted">
-      <span><span class="glyph covered">✓</span> every flow through it gets this far</span>
-      <span><span class="glyph partial">◐</span> some flows do</span>
-      <span><span class="glyph uncovered">✕</span> no test gets this far (dashed)</span>
+      <span>Nodes, flows through it that reach the socket:</span>
+      <span><span class="glyph covered">✓</span> all</span>
+      <span><span class="glyph partial">◐</span> some</span>
+      <span><span class="glyph uncovered">✕</span> none</span>
+      <span>Edges: solid when tests travel along it, dashed red when none does.</span>
       <span>Click a node or edge to filter the table below.</span>
     </div>
     <div class="card scroll"><svg id="graph" role="img" aria-label="Flow graph: component, handler, action, command, socket"></svg></div>
@@ -200,7 +202,7 @@ const COLUMNS = [
   { title: 'Handler / effect', x: 230, width: 200 },
   { title: 'Action', x: 560, width: 150 },
   { title: 'Command', x: 790, width: 160 },
-  { title: 'Socket', x: 1030, width: 120 },
+  { title: 'Socket', x: 1030, width: 150 },
 ];
 const ROW = 30, BOX = 22, TOP = 34;
 const nodes = new Map();
@@ -222,7 +224,7 @@ for (const flow of DATA.flows) {
     edges.get(key).flows.push(flow);
   });
 }
-// an element is covered when every flow passing through it gets that far in some test
+// an edge is covered when every flow passing along it gets that far in some test
 const reach = (flows, stage) => {
   const hit = flows.filter((flow) => flow.stages[stage].tests.length).length;
   return hit === flows.length ? 'covered' : hit ? 'partial' : 'uncovered';
@@ -242,7 +244,7 @@ function edgesFrom(id) { return [...edges.values()].filter((edge) => edge.from =
 let selection = null;
 let statusFilter = 'all';
 const graph = document.getElementById('graph');
-graph.setAttribute('viewBox', `-8 0 1170 ${height}`);
+graph.setAttribute('viewBox', `-8 0 1196 ${height}`);
 graph.setAttribute('style', 'min-width:960px;width:100%;display:block;padding:8px');
 graph.addEventListener('click', () => select(null));
 const pick = (item, label) => (event) => { event.stopPropagation(); select({ ids: new Set(item.flows.map((flow) => flow.id)), label }); };
@@ -259,8 +261,8 @@ for (const edge of edges.values()) {
 }
 for (const node of nodes.values()) {
   const column = COLUMNS[node.column];
-  const status = reach(node.flows, node.column);
   const done = node.flows.filter((flow) => flow.status === 'covered').length;
+  const status = done === node.flows.length ? 'covered' : done ? 'partial' : 'uncovered';
   node.el = s('g', { class: `node ${status}`, transform: `translate(${column.x},${node.y})`, onclick: pick(node, node.label) },
     s('title', {}, `${node.label} (${node.hint}): ${done} of ${plural(node.flows.length, 'flow')} reach the socket`),
     s('rect', { width: column.width, height: BOX, rx: 5 }),
@@ -285,7 +287,7 @@ function flowDetail(flow) {
   const last = flow.stages[broken - 1];
   const everyTest = last.tests.length === DATA.tests.length;
   return [`Gets as far as "${last.name}" but never reaches "${flow.stages[broken].name}". `,
-    everyTest ? `All ${DATA.tests.length} tests get that far.` : `${plural(last.tests.length, 'test')} get that far:`,
+    everyTest ? `All ${DATA.tests.length} tests get that far.` : `${plural(last.tests.length, 'test')} ${last.tests.length === 1 ? 'gets' : 'get'} that far:`,
     everyTest ? null : testList(last.tests)];
 }
 

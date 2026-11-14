@@ -57,14 +57,18 @@ function indexCoverage(runs) {
   };
   runs.forEach((run, testIndex) => {
     for (const [absolute, cov] of Object.entries(run.coverage)) {
-      const file = (files[path.relative(ROOT, absolute)] ??= { statements: {}, functions: {} });
+      const file = (files[path.relative(ROOT, absolute)] ??= { statements: {}, functions: {}, branches: {} });
       for (const [id, loc] of Object.entries(cov.statementMap)) collect(file.statements, loc, cov.s[id] > 0, testIndex);
       for (const [id, fn] of Object.entries(cov.fnMap)) collect(file.functions, fn.loc, cov.f[id] > 0, testIndex);
+      for (const [id, branch] of Object.entries(cov.branchMap)) {
+        branch.locations.forEach((loc, arm) => loc.start?.line && collect(file.branches, loc, cov.b[id][arm] > 0, testIndex));
+      }
     }
   });
   for (const file of Object.values(files)) {
     file.statements = Object.values(file.statements);
     file.functions = Object.values(file.functions);
+    file.branches = Object.values(file.branches);
   }
   return files;
 }
@@ -85,7 +89,7 @@ const NOT_CODE = /^\s*(\/\/.*|\/?\*.*|[\])}>;,(]*|(import|export type|type|inter
 function lineCoverage(file, line, text) {
   if (NOT_CODE.test(text)) return NEUTRAL;
   if (!file) return { status: 'uncovered', tests: [] };
-  let units = file.statements.filter((statement) => statement.loc.start.line === line);
+  let units = [...file.statements, ...file.branches].filter((unit) => unit.loc.start.line === line);
   if (!units.length) units = enclosing(file.statements, line).slice(0, 1);
   if (!units.length) units = enclosing(file.functions, line).slice(0, 1);
   if (!units.length) return NEUTRAL;

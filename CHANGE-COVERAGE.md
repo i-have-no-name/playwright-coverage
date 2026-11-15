@@ -36,7 +36,7 @@ What that one command does, in order:
 1. Starts the socket server (`server.mjs`, port 8787). An already running one is reused.
 2. Builds the instrumented bundle into `dist-coverage` (`COVERAGE=true rspack build`) and serves it on port 5273.
 3. Runs the Playwright tests. After each test the fixture saves that test's coverage and socket frames into `coverage-raw/`.
-4. When the run ends, the reporter writes `coverage-report/index.html` and `coverage-report/summary.md`.
+4. When the run ends, the reporter writes `coverage-report/index.html`, `coverage-report/summary.md` and `coverage-report/pr.md` (the short table CI puts into the PR description).
 
 The diff is taken against `main` by default.
 
@@ -328,7 +328,7 @@ A deleted line is not in the running app, so it gets no status, and a deleted ha
 | `server.mjs` | Demo socket server that acknowledges every command |
 | `src/` | Demo app. The reactions feature (slice, saga, hook, bound creators) exists to prove those patterns |
 | `coverage-raw/` | Raw data of the last run (ignored by git) |
-| `coverage-report/` | `index.html` and `summary.md` (ignored by git) |
+| `coverage-report/` | `index.html`, `summary.md` and `pr.md` (ignored by git) |
 
 ## 11. History
 

@@ -45,11 +45,11 @@
   .diff .code { width: 100%; }
   .diff .hunk td { color: var(--text-2); background: var(--page); }
   .diff .del .code, .diff .del .mark { background: color-mix(in srgb, var(--crit) 13%, transparent); }
-  .diff tr.add .code, .diff tr.add.neutral .mark { background: color-mix(in srgb, var(--good) 13%, transparent); }
-  .diff tr.add:not(.neutral) .mark { background: color-mix(in srgb, var(--s) 24%, transparent); }
+  .diff tr.add .code, .diff tr.add .mark { background: color-mix(in srgb, var(--good) 13%, transparent); }
+  .diff tr.add:not(.neutral) .count { background: color-mix(in srgb, var(--s) 24%, transparent); }
   .diff tr.add:not(.neutral) { cursor: pointer; }
-  .diff tr.add:not(.neutral):hover .code { background: color-mix(in srgb, var(--good) 24%, transparent); }
-  .diff .count { color: var(--text-2); text-align: right; font-family: system-ui, sans-serif; }
+  .diff tr.add:not(.neutral):hover .code, .diff tr.add:not(.neutral):hover .mark { background: color-mix(in srgb, var(--s) 24%, transparent); }
+  .diff .count { color: var(--text-2); font-family: system-ui, sans-serif; }
   .detail td { white-space: normal !important; font-family: system-ui, sans-serif !important; padding: 8px 14px 10px !important; box-shadow: inset 3px 0 0 var(--s); background: var(--page); }
   .detail ul { margin: 4px 0 0; padding-left: 18px; }
   .detail li a { color: var(--test-link); }
@@ -213,8 +213,8 @@ function diffRow(line) {
   const live = line.status !== 'neutral';
   const row = h('tr', { class: `add ${line.status}`, tabindex: live ? 0 : null, title: live ? WORD[line.status] : null },
     h('td', { class: 'no' }), h('td', { class: 'no' }, line.newNo),
-    h('td', { class: 'mark' }, live ? glyph(line.status) : '+'), h('td', { class: 'code' }, line.text),
-    h('td', { class: 'count' }, live ? (line.tests.length ? plural(line.tests.length, 'test') : 'no tests') : ''));
+    h('td', { class: 'mark' }, '+'), h('td', { class: 'code' }, line.text),
+    h('td', { class: 'count' }, live ? [glyph(line.status), line.tests.length ? plural(line.tests.length, 'test') : 'no tests'] : ''));
   if (live) {
     const open = () => toggleDetail(row, line.status, lineDetail(line));
     row.addEventListener('click', open);

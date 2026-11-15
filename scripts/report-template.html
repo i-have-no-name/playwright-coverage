@@ -81,7 +81,7 @@
   svg .dim { opacity: .12; }
 
   .bar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 14px 0 10px; }
-  .chip { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+  .chip { font: inherit; color: var(--text); background: var(--surface); border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); border-radius: 999px; padding: 4px 12px; cursor: pointer; }
   .chip:hover, .chip[aria-pressed=true] { border-color: var(--accent); }
   .chip[aria-pressed=true] { font-weight: 600; }
   .flows th { text-align: left; font-weight: 600; color: var(--text-2); font-size: 12px; padding: 8px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }

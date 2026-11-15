@@ -8,11 +8,11 @@
   :root {
     color-scheme: light dark;
     --page: #f4f3ef; --surface: #fcfcfb; --text: #0b0b0b; --text-2: #52514e; --line: #e1e0d9;
-    --good: #0ca30c; --warn: #fab219; --crit: #d03b3b; --link: #1b5fc4; --test-link: #7b3fc4;
+    --good: #0ca30c; --warn: #fab219; --crit: #d03b3b; --link: #1b5fc4; --test-link: #7b3fc4; --accent: #b0277a;
     --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   }
   @media (prefers-color-scheme: dark) {
-    :root { --page: #111110; --surface: #1a1a19; --text: #f0efec; --text-2: #c3c2b7; --line: #2c2c2a; --link: #8ab4f8; --test-link: #c4a1ff; }
+    :root { --page: #111110; --surface: #1a1a19; --text: #f0efec; --text-2: #c3c2b7; --line: #2c2c2a; --link: #8ab4f8; --test-link: #c4a1ff; --accent: #e879b9; }
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--page); color: var(--text); font: 14px/1.45 system-ui, sans-serif; }
@@ -32,7 +32,7 @@
 
   [role=tablist] { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 16px; }
   [role=tab] { font: inherit; color: var(--text-2); background: none; border: 0; border-bottom: 2px solid transparent; padding: 10px 14px; cursor: pointer; }
-  [role=tab][aria-selected=true] { color: var(--text); border-bottom-color: var(--text); font-weight: 600; }
+  [role=tab][aria-selected=true] { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
 
   .card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; margin-bottom: 12px; overflow: hidden; }
   .card > summary { display: flex; align-items: center; gap: 12px; padding: 10px 14px; cursor: pointer; flex-wrap: wrap; }
@@ -82,7 +82,8 @@
 
   .bar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 14px 0 10px; }
   .chip { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; cursor: pointer; }
-  .chip[aria-pressed=true] { border-color: var(--text); font-weight: 600; }
+  .chip:hover, .chip[aria-pressed=true] { border-color: var(--accent); }
+  .chip[aria-pressed=true] { font-weight: 600; }
   .flows th { text-align: left; font-weight: 600; color: var(--text-2); font-size: 12px; padding: 8px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
   .flows td { padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
   .flows tr.flow { cursor: pointer; }

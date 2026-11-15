@@ -1,0 +1,107 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run check:scan
+      - run: npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.head_ref }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test --shard=${{ matrix.shard }}/${{ strategy.job-total }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: coverage-raw-${{ matrix.shard }}
+          path: coverage-raw
+
+  report:
+    if: github.event_name == 'pull_request'
+    needs: e2e
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: coverage-raw-*
+          path: coverage-raw
+          merge-multiple: true
+      - run: npm run report
+        env:
+          DIFF_BASE: origin/${{ github.base_ref }}
+      - run: cat coverage-report/summary.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish report to GitHub Pages
+        env:
+          DIR: pr-${{ github.event.pull_request.number }}
+        # ponytail: single push, two PRs publishing at once can lose the race; rerun the job, add a pull --rebase retry if it bites
+        run: |
+          git worktree add pages gh-pages
+          mkdir -p "pages/$DIR"
+          cp coverage-report/index.html "pages/$DIR/"
+          cd pages
+          git add -A
+          git diff --cached --quiet || git -c user.name=github-actions -c user.email=github-actions@github.com commit -m "Report for $DIR"
+          git push origin gh-pages
+
+  pr-description:
+    needs: report
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Put the report link into the PR description
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}
+          BLOCK: |-
+            <!-- change-coverage:start -->
+            [Change coverage report](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/pr-${{ github.event.pull_request.number }}/)
+            <!-- change-coverage:end -->
+        run: |
+          gh api "$PR" --jq '.body // ""' > body.md
+          if grep -q 'change-coverage:start' body.md; then
+            perl -0pi -e 's/<!-- change-coverage:start -->.*?<!-- change-coverage:end -->/$ENV{BLOCK}/s' body.md
+          else
+            printf '\n\n%s\n' "$BLOCK" >> body.md
+          fi
+          gh api -X PATCH "$PR" -F body=@body.md > /dev/null

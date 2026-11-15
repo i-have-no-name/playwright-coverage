@@ -44,10 +44,11 @@
   .diff .no { color: var(--text-2); text-align: right; user-select: none; width: 1%; }
   .diff .code { width: 100%; }
   .diff .hunk td { color: var(--text-2); background: var(--page); }
-  .diff .del .code { color: var(--text-2); text-decoration: line-through; text-decoration-color: var(--line); }
-  .diff tr.add:not(.neutral) .code, .diff tr.add:not(.neutral) .mark { background: color-mix(in srgb, var(--s) 13%, transparent); }
+  .diff .del .code, .diff .del .mark { background: color-mix(in srgb, var(--crit) 13%, transparent); }
+  .diff tr.add .code, .diff tr.add.neutral .mark { background: color-mix(in srgb, var(--good) 13%, transparent); }
+  .diff tr.add:not(.neutral) .mark { background: color-mix(in srgb, var(--s) 24%, transparent); }
   .diff tr.add:not(.neutral) { cursor: pointer; }
-  .diff tr.add:not(.neutral):hover .code { background: color-mix(in srgb, var(--s) 24%, transparent); }
+  .diff tr.add:not(.neutral):hover .code { background: color-mix(in srgb, var(--good) 24%, transparent); }
   .diff .count { color: var(--text-2); text-align: right; font-family: system-ui, sans-serif; }
   .detail td { white-space: normal !important; font-family: system-ui, sans-serif !important; padding: 8px 14px 10px !important; box-shadow: inset 3px 0 0 var(--s); background: var(--page); }
   .detail ul { margin: 4px 0 0; padding-left: 18px; }
@@ -207,7 +208,7 @@ function diffRow(line) {
   if (line.type === '@') return h('tr', { class: 'hunk' }, h('td', { colspan: 5 }, line.text));
   if (line.type !== '+') {
     return h('tr', { class: line.type === '-' ? 'del' : '' }, h('td', { class: 'no' }, line.oldNo ?? ''), h('td', { class: 'no' }, line.newNo ?? ''),
-      h('td', {}, line.type === '-' ? '-' : ''), h('td', { class: 'code' }, line.text), h('td', {}));
+      h('td', { class: 'mark' }, line.type === '-' ? '-' : ''), h('td', { class: 'code' }, line.text), h('td', {}));
   }
   const live = line.status !== 'neutral';
   const row = h('tr', { class: `add ${line.status}`, tabindex: live ? 0 : null, title: live ? WORD[line.status] : null },

@@ -51,6 +51,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    outputs:
+      summary: ${{ steps.summary.outputs.markdown }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -70,6 +72,13 @@ jobs:
         env:
           DIFF_BASE: origin/${{ github.base_ref }}
       - run: cat coverage-report/summary.md >> "$GITHUB_STEP_SUMMARY"
+      - id: summary
+        run: |
+          {
+            echo 'markdown<<CHANGE_COVERAGE_EOF'
+            cat coverage-report/pr.md
+            echo 'CHANGE_COVERAGE_EOF'
+          } >> "$GITHUB_OUTPUT"
       - name: Publish report to GitHub Pages
         env:
           DIR: pr-${{ github.event.pull_request.number }}
@@ -95,7 +104,9 @@ jobs:
           PR: repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}
           BLOCK: |-
             <!-- change-coverage:start -->
-            [Change coverage report](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/pr-${{ github.event.pull_request.number }}/)
+            ${{ needs.report.outputs.summary }}
+
+            [Full change coverage report](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/pr-${{ github.event.pull_request.number }}/)
             <!-- change-coverage:end -->
         run: |
           gh api "$PR" --jq '.body // ""' > body.md
@@ -104,4 +115,5 @@ jobs:
           else
             printf '\n\n%s\n' "$BLOCK" >> body.md
           fi
+          perl -0pi -e 's/\A\s+//; s/\s+\z/\n/' body.md
           gh api -X PATCH "$PR" -F body=@body.md > /dev/null

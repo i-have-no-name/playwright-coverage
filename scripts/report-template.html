@@ -8,7 +8,7 @@
   :root {
     color-scheme: light dark;
     --page: #f4f3ef; --surface: #fcfcfb; --text: #0b0b0b; --text-2: #52514e; --line: #e1e0d9;
-    --good: #0ca30c; --warn: #fab219; --crit: #d03b3b; --link: #1b5fc4; --test-link: #7b3fc4;
+    --good: #0ca30c; --warn: #fab219; --crit: #d03b3b; --link: #1b5fc4; --test-link: #7b3fc4; --accent: var(--link);
     --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   }
   @media (prefers-color-scheme: dark) {
@@ -32,7 +32,7 @@
 
   [role=tablist] { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 16px; }
   [role=tab] { font: inherit; color: var(--text-2); background: none; border: 0; border-bottom: 2px solid transparent; padding: 10px 14px; cursor: pointer; }
-  [role=tab][aria-selected=true] { color: var(--text); border-bottom-color: var(--text); font-weight: 600; }
+  [role=tab][aria-selected=true] { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
 
   .card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; margin-bottom: 12px; overflow: hidden; }
   .card > summary { display: flex; align-items: center; gap: 12px; padding: 10px 14px; cursor: pointer; flex-wrap: wrap; }
@@ -44,11 +44,18 @@
   .diff .no { color: var(--text-2); text-align: right; user-select: none; width: 1%; }
   .diff .code { width: 100%; }
   .diff .hunk td { color: var(--text-2); background: var(--page); }
-  .diff .del .code { color: var(--text-2); text-decoration: line-through; text-decoration-color: var(--line); }
-  .diff tr.add:not(.neutral) .code, .diff tr.add:not(.neutral) .mark { background: color-mix(in srgb, var(--s) 13%, transparent); }
+  .diff tr.add:not(.neutral) .count { background: color-mix(in srgb, var(--s) 24%, transparent); }
   .diff tr.add:not(.neutral) { cursor: pointer; }
-  .diff tr.add:not(.neutral):hover .code { background: color-mix(in srgb, var(--s) 24%, transparent); }
-  .diff .count { color: var(--text-2); text-align: right; font-family: system-ui, sans-serif; }
+  section:not(.as-diff) .diff :is(.del, td.no:first-child, .mark, tbody:not(:has(.add))) { display: none; }
+  section:not(.as-diff) .diff tr.add td:nth-child(2) { box-shadow: inset 3px 0 0 var(--s); }
+  section:not(.as-diff) .diff tr.add.neutral td:nth-child(2) { box-shadow: inset 3px 0 0 color-mix(in srgb, var(--text-2) 45%, transparent); }
+  section:not(.as-diff) .diff tr.add:is(.uncovered, .partial) .code { background: color-mix(in srgb, var(--s) 13%, transparent); }
+  section:not(.as-diff) .diff tr.add:not(.neutral):hover .code { background: color-mix(in srgb, var(--s) 24%, transparent); }
+  .as-diff .diff .del :is(.code, .mark) { background: color-mix(in srgb, var(--crit) 13%, transparent); }
+  .as-diff .diff tr.add :is(.code, .mark) { background: color-mix(in srgb, var(--good) 13%, transparent); }
+  .as-diff .diff tr.add:is(.uncovered, .partial) td:first-child { box-shadow: inset 3px 0 0 var(--s); }
+  .as-diff .diff tr.add:not(.neutral):hover :is(.code, .mark) { background: color-mix(in srgb, var(--s) 24%, transparent); }
+  .diff .count { color: var(--text-2); font-family: system-ui, sans-serif; }
   .detail td { white-space: normal !important; font-family: system-ui, sans-serif !important; padding: 8px 14px 10px !important; box-shadow: inset 3px 0 0 var(--s); background: var(--page); }
   .detail ul { margin: 4px 0 0; padding-left: 18px; }
   .detail li a { color: var(--test-link); }
@@ -74,8 +81,11 @@
   svg .dim { opacity: .12; }
 
   .bar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 14px 0 10px; }
-  .chip { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; cursor: pointer; }
-  .chip[aria-pressed=true] { border-color: var(--text); font-weight: 600; }
+  .chip { font: inherit; color: var(--text); background: var(--surface); border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+  .chip:hover, .chip[aria-pressed=true] { border-color: var(--accent); }
+  .chip[aria-pressed=true] { background: color-mix(in srgb, var(--accent) 18%, var(--surface)); }
+  .chip[aria-pressed]::before { content: '✓'; margin-right: 6px; font-weight: 700; color: color-mix(in srgb, var(--text-2) 45%, transparent); }
+  .chip[aria-pressed=true]::before { color: var(--good); }
   .flows th { text-align: left; font-weight: 600; color: var(--text-2); font-size: 12px; padding: 8px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
   .flows td { padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
   .flows tr.flow { cursor: pointer; }
@@ -207,13 +217,13 @@ function diffRow(line) {
   if (line.type === '@') return h('tr', { class: 'hunk' }, h('td', { colspan: 5 }, line.text));
   if (line.type !== '+') {
     return h('tr', { class: line.type === '-' ? 'del' : '' }, h('td', { class: 'no' }, line.oldNo ?? ''), h('td', { class: 'no' }, line.newNo ?? ''),
-      h('td', {}, line.type === '-' ? '-' : ''), h('td', { class: 'code' }, line.text), h('td', {}));
+      h('td', { class: 'mark' }, line.type === '-' ? '-' : ''), h('td', { class: 'code' }, line.text), h('td', {}));
   }
   const live = line.status !== 'neutral';
   const row = h('tr', { class: `add ${line.status}`, tabindex: live ? 0 : null, title: live ? WORD[line.status] : null },
     h('td', { class: 'no' }), h('td', { class: 'no' }, line.newNo),
-    h('td', { class: 'mark' }, live ? glyph(line.status) : '+'), h('td', { class: 'code' }, line.text),
-    h('td', { class: 'count' }, live ? (line.tests.length ? plural(line.tests.length, 'test') : 'no tests') : ''));
+    h('td', { class: 'mark' }, '+'), h('td', { class: 'code' }, line.text),
+    h('td', { class: 'count' }, live ? [glyph(line.status), line.tests.length ? plural(line.tests.length, 'test') : 'no tests'] : ''));
   if (live) {
     const open = () => toggleDetail(row, line.status, lineDetail(line));
     row.addEventListener('click', open);
@@ -224,15 +234,25 @@ function diffRow(line) {
 
 if (DATA.diffError) panels.diff.append(h('p', {}, DATA.diffError));
 else if (!DATA.diff.length) panels.diff.append(h('p', { class: 'muted' }, 'No source changes against the base.'));
+if (DATA.diff.length) {
+  const toggle = h('button', { class: 'chip', 'aria-pressed': 'false',
+    onclick: () => toggle.setAttribute('aria-pressed', panels.diff.classList.toggle('as-diff')) }, 'Show as diff');
+  panels.diff.append(h('div', { class: 'bar' }, toggle));
+}
 for (const file of DATA.diff) {
   const lines = file.lines.filter((line) => line.type === '+' && line.status !== 'neutral');
   const covered = lines.filter((line) => line.status === 'covered').length;
   const status = !lines.length ? 'neutral' : covered === lines.length ? 'covered' : covered ? 'partial' : 'uncovered';
+  const hunks = [];
+  for (const line of file.lines) {
+    if (line.type === '@' || !hunks.length) hunks.push([]);
+    hunks.at(-1).push(line);
+  }
   panels.diff.append(h('details', { class: 'card', open: '' },
     h('summary', {}, glyph(status), h('code', {}, file.path),
       h('span', { class: 'muted' }, lines.length ? `${covered} of ${lines.length} changed lines covered` : 'no executable changes'),
       meter(covered, lines.length)),
-    h('div', { class: 'scroll' }, h('table', { class: 'diff' }, file.lines.map(diffRow)))));
+    h('div', { class: 'scroll' }, h('table', { class: 'diff' }, hunks.map((hunk) => h('tbody', {}, hunk.map(diffRow)))))));
 }
 
 // ---------- flow coverage (used for all flows and for flows touched by the diff) ----------
@@ -269,7 +289,7 @@ function flowRows(flow, expanded = false) {
     h('td', {}, h('b', {}, flow.place), ` › ${flow.handler}`,
       h('div', { class: 'muted' },
         flow.trigger && [sourceLink(flow.trigger.file, flow.trigger.line), ` calls ${flow.trigger.calls} → `],
-        sourceLink(flow.file, flow.line), flow.changed && ` · ${flow.changed}`)),
+        sourceLink(flow.file, flow.line), (flow.changed || flow.fileChanged) && ` · ${flow.changed ?? 'file changed'}`)),
     h('td', {}, h('code', {}, flow.action)),
     h('td', {}, h('code', {}, flow.topic)),
     h('td', {}, flow.stages.map((stage) => {
@@ -386,7 +406,7 @@ function flowView(panel, flows, intro, emptyText) {
     for (const flow of flows) counts[flow.status] = (counts[flow.status] ?? 0) + 1;
     bar.replaceChildren(
       ...['all', 'covered', 'partial', 'uncovered'].map((status) =>
-        h('button', { class: 'chip', 'aria-pressed': statusFilter === status, onclick: () => { statusFilter = status; renderTable(); } },
+        h('button', { class: 'chip', 'aria-pressed': String(statusFilter === status), onclick: () => { statusFilter = status; renderTable(); } },
           `${status === 'all' ? 'All flows' : WORD[status]} (${counts[status] ?? 0})`)),
       ...(selection ? [h('span', { class: 'muted' }, ` through ${selection.label} `), h('button', { class: 'chip', onclick: () => select(null) }, 'Clear selection')] : []));
     const rows = flows
@@ -406,9 +426,17 @@ function flowView(panel, flows, intro, emptyText) {
   select(null);
 }
 
-flowView(panels.changed, changedFlows,
-  'Only flows touched by this diff: the dispatch call, its handler, its command mapping, or another line in the same file changed.',
-  DATA.diffError ?? 'No flow is touched by this diff.');
+const fileFlows = DATA.flows.filter((flow) => flow.changed || flow.fileChanged);
+function renderChanged(wide) {
+  panels.changed.replaceChildren(h('div', { class: 'bar' },
+    h('button', { class: 'chip', 'aria-pressed': String(wide), onclick: () => renderChanged(!wide) }, `Include every flow of changed files (${fileFlows.length})`)));
+  flowView(panels.changed, wide ? fileFlows : changedFlows,
+    wide
+      ? 'Every flow in a file this diff changes, touched or not.'
+      : 'Only flows touched by this diff: the dispatch call, its handler or its command mapping changed.',
+    DATA.diffError ?? 'No flow is touched by this diff.');
+}
+renderChanged(false);
 flowView(panels.flows, DATA.flows, 'Every dispatch call site in the source, changed or not.', 'No flows found.');
 </script>
 </body>

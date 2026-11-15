@@ -456,10 +456,8 @@ function buildFlows(coverage, runs, changed) {
         ? 'handler changed'
         : touched(COMMANDS_FILE, command.start, command.end)
           ? 'command mapping changed'
-          : changed[site.file]
-            ? 'file changed'
-            : null;
-    return { id, ...rest, trigger, topic: command.topic, commandLine: command.line, changed: reason, status, stages };
+          : null;
+    return { id, ...rest, trigger, topic: command.topic, commandLine: command.line, changed: reason, fileChanged: !!changed[site.file], status, stages };
   });
 
   const frames = runs.flatMap((run) => run.frames);
@@ -524,6 +522,34 @@ function summaryMarkdown(data) {
   return out.join('\n');
 }
 
+const PR_ROWS = 25;
+
+function prMarkdown(data) {
+  const total = data.diff.flatMap(addedLines).length;
+  const covered = data.diff.flatMap(coveredLines).length;
+  const failed = data.tests.filter((test) => test.status !== 'passed').length;
+  const order = ['uncovered', 'partial', 'covered'];
+  const flows = data.flows.filter((flow) => flow.changed).sort((a, b) => order.indexOf(a.status) - order.indexOf(b.status));
+  const out = [
+    '### Change coverage',
+    '',
+    `**Changed lines run by a test:** ${covered}/${total} (${percent(covered, total)}) · ` +
+      `**Touched flows reaching the socket:** ${flows.filter((flow) => flow.status === 'covered').length}/${flows.length} · ` +
+      `**Tests:** ${data.tests.length - failed} passed${failed ? `, ${failed} failed` : ''}`,
+  ];
+  if (flows.length) out.push('', '| Component | Handler | Action | Command | Socket |', '|---|---|---|---|---|');
+  for (const flow of flows.slice(0, PR_ROWS)) {
+    const reached = flow.stages.map((stage) => (!stage.tests.length ? '❌' : flow.status === 'covered' ? '✅' : '⚠️'));
+    const names = [flow.place, flow.handler, flow.action, flow.topic].map((name, index) => `${reached[index]} \`${name}\``);
+    const where = `${path.basename(flow.handlerFile)}:${flow.handlerLine}`;
+    names[1] += data.repo && data.sha ? ` [${where}](${data.repo}/blob/${data.sha}/${flow.handlerFile}#L${flow.handlerLine})` : ` ${where}`;
+    out.push(`| ${names.join(' | ')} | ${reached[4]} ${flow.stages[4].tests.length ? 'sent' : 'not sent'} |`);
+  }
+  if (flows.length > PR_ROWS) out.push('', `…and ${flows.length - PR_ROWS} more flows in the report.`);
+  if (flows.length) out.push('', '✅ a test takes the flow to the socket · ⚠️ tests get this far, none reaches the socket · ❌ no test gets here');
+  return out.join('\n') + '\n';
+}
+
 export async function generate() {
   const runs = loadRuns();
   if (!runs.length) {
@@ -562,6 +588,7 @@ export async function generate() {
   fs.mkdirSync(OUT_DIR, { recursive: true });
   fs.writeFileSync(path.join(OUT_DIR, 'index.html'), template.replace('__DATA__', () => json));
   fs.writeFileSync(path.join(OUT_DIR, 'summary.md'), summaryMarkdown(data));
+  fs.writeFileSync(path.join(OUT_DIR, 'pr.md'), prMarkdown(data));
   console.log(`\nChange coverage report: ${path.join(OUT_DIR, 'index.html')}`);
   return data;
 }

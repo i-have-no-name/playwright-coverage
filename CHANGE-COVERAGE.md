@@ -36,7 +36,7 @@ What that one command does, in order:
 1. Starts the socket server (`server.mjs`, port 8787). An already running one is reused.
 2. Builds the instrumented bundle into `dist-coverage` (`COVERAGE=true rspack build`) and serves it on port 5273.
 3. Runs the Playwright tests. After each test the fixture saves that test's coverage and socket frames into `coverage-raw/`.
-4. When the run ends, the reporter writes `coverage-report/index.html` and `coverage-report/summary.md`.
+4. When the run ends, the reporter writes `coverage-report/index.html`, `coverage-report/summary.md` and `coverage-report/pr.md` (the short table CI puts into the PR description).
 
 The diff is taken against `main` by default.
 
@@ -101,7 +101,7 @@ Three tabs:
 
 | Tab | Content |
 |---|---|
-| Diff coverage | The diff per file. Each added line is marked ✓ covered, ◐ partly covered or ✕ not covered. Click a line to see the tests, with links to `tests/file.spec.ts:line` |
+| Diff coverage | The changed hunks per file. Each added line is marked ✓ covered, ◐ partly covered or ✕ not covered, and lines that no test fully runs are highlighted. Deleted lines are hidden; "Show as diff" brings them back with git colours. Click a line to see the tests, with links to `tests/file.spec.ts:line` |
 | Diff flow coverage | Only the flows touched by the diff, with the reason each one is included |
 | Flow coverage | Every flow in the app, changed or not |
 
@@ -119,7 +119,7 @@ Flow status:
 | ◐ Partly covered | A test reaches the handler, but no test gets the command onto the socket |
 | ✕ Not covered | No test reaches the handler |
 
-A flow shows up in the Diff flow tab for the first matching reason: call site changed, handler changed, command mapping changed, file changed.
+A flow shows up in the Diff flow tab for the first matching reason: call site changed, handler changed, command mapping changed. Other flows of a changed file are hidden until "Include every flow of changed files" is switched on; they are marked file changed.
 
 ## 4. How it works
 
@@ -274,7 +274,7 @@ Yes: `DIFF_BASE=HEAD`, or `npm run test:e2e:uncommitted`.
 A node's colour counted every flow through it, and other flows through those shared nodes were not covered. Now, when you select a path, the graph is recoloured for the selected flows only. Selecting a root can still show yellow, because some of its flows are not covered.
 
 **Why does the Diff flow tab show flows from files I did not touch?**
-A flow is included when its call site, its handler, its command mapping or its file changed. A change to one branch of `actionToCommand` therefore pulls in every flow of that action, wherever it is dispatched.
+A flow is included when its call site, its handler or its command mapping changed. A change to one branch of `actionToCommand` therefore pulls in every flow of that action, wherever it is dispatched.
 
 **A child component with two buttons calls the same callback prop. Why was it one flow?**
 It was merged. Now every place in the child that calls the prop is its own flow.
@@ -328,7 +328,7 @@ A deleted line is not in the running app, so it gets no status, and a deleted ha
 | `server.mjs` | Demo socket server that acknowledges every command |
 | `src/` | Demo app. The reactions feature (slice, saga, hook, bound creators) exists to prove those patterns |
 | `coverage-raw/` | Raw data of the last run (ignored by git) |
-| `coverage-report/` | `index.html` and `summary.md` (ignored by git) |
+| `coverage-report/` | `index.html`, `summary.md` and `pr.md` (ignored by git) |
 
 ## 11. History
 

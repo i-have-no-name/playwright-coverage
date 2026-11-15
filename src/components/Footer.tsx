@@ -1,4 +1,3 @@
-import { throws } from 'node:assert';
 import { joinRoom, leaveRoom, sendMessage, setStatus } from '../store/actions';
 import { useAppDispatch, useAppSelector } from '../store/store';
 import { announce } from '../store/thunks';
@@ -22,6 +21,14 @@ function SubFooter(props: any) {
         }}
       >
         handle-b
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          props.b();
+        }}
+      >
+        handle-c
       </button>
     </div>
   );

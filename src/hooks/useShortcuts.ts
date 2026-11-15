@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { joinRoom, leaveRoom, refresh, setStatus } from '../store/actions';
+import { joinRoom, leaveRoom, refresh, sendMessage, setStatus } from '../store/actions';
 import { useAppDispatch } from '../store/store';
 
 export function useShortcuts() {
@@ -22,6 +22,9 @@ export function useShortcuts() {
           break;
         case 'a':
           dispatch(setStatus('away'));
+          break;
+        case 'h':
+          dispatch(sendMessage('hi'));
           break;
       }
     };

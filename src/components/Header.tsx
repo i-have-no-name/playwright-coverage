@@ -2,6 +2,31 @@ import { leaveRoom, refresh, setStatus, type Status } from '../store/actions';
 import { useAppDispatch, useAppSelector } from '../store/store';
 import { switchRoom } from '../store/thunks';
 
+function SubHeader(props: any) {
+  return (
+    <div>
+      <h1>SubHeader</h1>
+      <button
+        onClick={() => {
+          props.onClick();
+          console.log('OK');
+        }}
+      >
+        handle click-1
+      </button>
+
+      <button
+        onClick={() => {
+          props.onClick();
+          console.log('not-OK');
+        }}
+      >
+        handle click-2
+      </button>
+    </div>
+  );
+}
+
 export function Header() {
   const dispatch = useAppDispatch();
   const connected = useAppSelector((state) => state.connected);
@@ -9,6 +34,9 @@ export function Header() {
   const status = useAppSelector((state) => state.status);
 
   const handleLeave = () => {
+    if (!room) {
+      return;
+    }
     dispatch(leaveRoom());
   };
 
@@ -29,6 +57,12 @@ export function Header() {
       <button onClick={() => dispatch(refresh())}>Refresh</button>
       <button onClick={handleLeave}>Leave</button>
       <button onClick={() => dispatch(switchRoom('support'))}>Go to support</button>
+
+      <SubHeader
+        onClick={() => {
+          dispatch(refresh());
+        }}
+      />
     </header>
   );
 }

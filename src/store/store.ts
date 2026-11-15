@@ -1,4 +1,5 @@
-import { configureStore, createReducer, type ThunkAction, type UnknownAction } from '@reduxjs/toolkit';
+import { configureStore, createReducer, isAnyOf, type ThunkAction, type UnknownAction } from '@reduxjs/toolkit';
+import createSagaMiddleware from 'redux-saga';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   commandAcked,
@@ -9,6 +10,8 @@ import {
   socketOpened,
   type Status,
 } from './actions';
+import { reactionAdded, reactionsCleared, reactionsSlice } from './reactions';
+import { rootSaga } from './sagas';
 import { socketMiddleware } from './socket';
 
 const initialState = {
@@ -17,6 +20,7 @@ const initialState = {
   status: 'online' as Status,
   messages: [] as string[],
   acks: [] as string[],
+  reactions: reactionsSlice.getInitialState(),
 };
 
 const reducer = createReducer(initialState, (builder) => {
@@ -38,13 +42,20 @@ const reducer = createReducer(initialState, (builder) => {
     })
     .addCase(sendMessage, (state, action) => {
       state.messages.push(action.payload);
+    })
+    .addMatcher(isAnyOf(reactionAdded, reactionsCleared), (state, action) => {
+      state.reactions = reactionsSlice.reducer(state.reactions, action);
     });
 });
 
+const sagaMiddleware = createSagaMiddleware();
+
 export const store = configureStore({
   reducer,
-  middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(socketMiddleware),
+  middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(sagaMiddleware, socketMiddleware),
 });
+
+sagaMiddleware.run(rootSaga);
 
 export type RootState = ReturnType<typeof reducer>;
 export type AppDispatch = typeof store.dispatch;

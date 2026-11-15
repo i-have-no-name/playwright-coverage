@@ -286,7 +286,7 @@ function flowRows(flow, expanded = false) {
     h('td', {}, h('b', {}, flow.place), ` › ${flow.handler}`,
       h('div', { class: 'muted' },
         flow.trigger && [sourceLink(flow.trigger.file, flow.trigger.line), ` calls ${flow.trigger.calls} → `],
-        sourceLink(flow.file, flow.line), flow.changed && ` · ${flow.changed}`)),
+        sourceLink(flow.file, flow.line), (flow.changed || flow.fileChanged) && ` · ${flow.changed ?? 'file changed'}`)),
     h('td', {}, h('code', {}, flow.action)),
     h('td', {}, h('code', {}, flow.topic)),
     h('td', {}, flow.stages.map((stage) => {
@@ -423,9 +423,17 @@ function flowView(panel, flows, intro, emptyText) {
   select(null);
 }
 
-flowView(panels.changed, changedFlows,
-  'Only flows touched by this diff: the dispatch call, its handler or its command mapping changed.',
-  DATA.diffError ?? 'No flow is touched by this diff.');
+const fileFlows = DATA.flows.filter((flow) => flow.changed || flow.fileChanged);
+function renderChanged(wide) {
+  panels.changed.replaceChildren(h('div', { class: 'bar' },
+    h('button', { class: 'chip', 'aria-pressed': wide, onclick: () => renderChanged(!wide) }, `Include every flow of changed files (${fileFlows.length})`)));
+  flowView(panels.changed, wide ? fileFlows : changedFlows,
+    wide
+      ? 'Every flow in a file this diff changes, touched or not.'
+      : 'Only flows touched by this diff: the dispatch call, its handler or its command mapping changed.',
+    DATA.diffError ?? 'No flow is touched by this diff.');
+}
+renderChanged(false);
 flowView(panels.flows, DATA.flows, 'Every dispatch call site in the source, changed or not.', 'No flows found.');
 </script>
 </body>

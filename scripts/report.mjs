@@ -457,7 +457,7 @@ function buildFlows(coverage, runs, changed) {
         : touched(COMMANDS_FILE, command.start, command.end)
           ? 'command mapping changed'
           : null;
-    return { id, ...rest, trigger, topic: command.topic, commandLine: command.line, changed: reason, status, stages };
+    return { id, ...rest, trigger, topic: command.topic, commandLine: command.line, changed: reason, fileChanged: !!changed[site.file], status, stages };
   });
 
   const frames = runs.flatMap((run) => run.frames);
@@ -539,11 +539,14 @@ function prMarkdown(data) {
   ];
   if (flows.length) out.push('', '| Component | Handler | Action | Command | Socket |', '|---|---|---|---|---|');
   for (const flow of flows.slice(0, PR_ROWS)) {
-    const reached = flow.stages.map((stage) => (stage.tests.length ? '✅' : '❌'));
+    const reached = flow.stages.map((stage) => (!stage.tests.length ? '❌' : flow.status === 'covered' ? '✅' : '⚠️'));
     const names = [flow.place, flow.handler, flow.action, flow.topic].map((name, index) => `${reached[index]} \`${name}\``);
+    const where = `${path.basename(flow.handlerFile)}:${flow.handlerLine}`;
+    names[1] += data.repo && data.sha ? ` [${where}](${data.repo}/blob/${data.sha}/${flow.handlerFile}#L${flow.handlerLine})` : ` ${where}`;
     out.push(`| ${names.join(' | ')} | ${reached[4]} ${flow.stages[4].tests.length ? 'sent' : 'not sent'} |`);
   }
   if (flows.length > PR_ROWS) out.push('', `…and ${flows.length - PR_ROWS} more flows in the report.`);
+  if (flows.length) out.push('', '✅ a test takes the flow to the socket · ⚠️ tests get this far, none reaches the socket · ❌ no test gets here');
   return out.join('\n') + '\n';
 }
 

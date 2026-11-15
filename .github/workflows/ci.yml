@@ -115,4 +115,5 @@ jobs:
           else
             printf '\n\n%s\n' "$BLOCK" >> body.md
           fi
+          perl -0pi -e 's/\A\s+//; s/\s+\z/\n/' body.md
           gh api -X PATCH "$PR" -F body=@body.md > /dev/null

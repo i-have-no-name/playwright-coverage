@@ -119,7 +119,7 @@ Flow status:
 | ◐ Partly covered | A test reaches the handler, but no test gets the command onto the socket |
 | ✕ Not covered | No test reaches the handler |
 
-A flow shows up in the Diff flow tab for the first matching reason: call site changed, handler changed, command mapping changed. Other flows of a changed file are left to the Flow coverage tab.
+A flow shows up in the Diff flow tab for the first matching reason: call site changed, handler changed, command mapping changed. Other flows of a changed file are hidden until "Include every flow of changed files" is switched on; they are marked file changed.
 
 ## 4. How it works
 

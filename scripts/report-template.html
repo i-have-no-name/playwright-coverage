@@ -83,7 +83,9 @@
   .bar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 14px 0 10px; }
   .chip { font: inherit; color: var(--text); background: var(--surface); border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); border-radius: 999px; padding: 4px 12px; cursor: pointer; }
   .chip:hover, .chip[aria-pressed=true] { border-color: var(--accent); }
-  .chip[aria-pressed=true] { font-weight: 600; }
+  .chip[aria-pressed=true] { background: color-mix(in srgb, var(--accent) 18%, var(--surface)); }
+  .chip[aria-pressed]::before { content: '✓'; margin-right: 6px; font-weight: 700; color: color-mix(in srgb, var(--text-2) 45%, transparent); }
+  .chip[aria-pressed=true]::before { color: var(--good); }
   .flows th { text-align: left; font-weight: 600; color: var(--text-2); font-size: 12px; padding: 8px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
   .flows td { padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
   .flows tr.flow { cursor: pointer; }
@@ -233,7 +235,7 @@ function diffRow(line) {
 if (DATA.diffError) panels.diff.append(h('p', {}, DATA.diffError));
 else if (!DATA.diff.length) panels.diff.append(h('p', { class: 'muted' }, 'No source changes against the base.'));
 if (DATA.diff.length) {
-  const toggle = h('button', { class: 'chip', 'aria-pressed': false,
+  const toggle = h('button', { class: 'chip', 'aria-pressed': 'false',
     onclick: () => toggle.setAttribute('aria-pressed', panels.diff.classList.toggle('as-diff')) }, 'Show as diff');
   panels.diff.append(h('div', { class: 'bar' }, toggle));
 }
@@ -404,7 +406,7 @@ function flowView(panel, flows, intro, emptyText) {
     for (const flow of flows) counts[flow.status] = (counts[flow.status] ?? 0) + 1;
     bar.replaceChildren(
       ...['all', 'covered', 'partial', 'uncovered'].map((status) =>
-        h('button', { class: 'chip', 'aria-pressed': statusFilter === status, onclick: () => { statusFilter = status; renderTable(); } },
+        h('button', { class: 'chip', 'aria-pressed': String(statusFilter === status), onclick: () => { statusFilter = status; renderTable(); } },
           `${status === 'all' ? 'All flows' : WORD[status]} (${counts[status] ?? 0})`)),
       ...(selection ? [h('span', { class: 'muted' }, ` through ${selection.label} `), h('button', { class: 'chip', onclick: () => select(null) }, 'Clear selection')] : []));
     const rows = flows
@@ -427,7 +429,7 @@ function flowView(panel, flows, intro, emptyText) {
 const fileFlows = DATA.flows.filter((flow) => flow.changed || flow.fileChanged);
 function renderChanged(wide) {
   panels.changed.replaceChildren(h('div', { class: 'bar' },
-    h('button', { class: 'chip', 'aria-pressed': wide, onclick: () => renderChanged(!wide) }, `Include every flow of changed files (${fileFlows.length})`)));
+    h('button', { class: 'chip', 'aria-pressed': String(wide), onclick: () => renderChanged(!wide) }, `Include every flow of changed files (${fileFlows.length})`)));
   flowView(panels.changed, wide ? fileFlows : changedFlows,
     wide
       ? 'Every flow in a file this diff changes, touched or not.'

@@ -119,7 +119,7 @@ Flow status:
 | ◐ Partly covered | A test reaches the handler, but no test gets the command onto the socket |
 | ✕ Not covered | No test reaches the handler |
 
-A flow shows up in the Diff flow tab for the first matching reason: call site changed, handler changed, command mapping changed, file changed.
+A flow shows up in the Diff flow tab for the first matching reason: call site changed, handler changed, command mapping changed. Other flows of a changed file are left to the Flow coverage tab.
 
 ## 4. How it works
 
@@ -274,7 +274,7 @@ Yes: `DIFF_BASE=HEAD`, or `npm run test:e2e:uncommitted`.
 A node's colour counted every flow through it, and other flows through those shared nodes were not covered. Now, when you select a path, the graph is recoloured for the selected flows only. Selecting a root can still show yellow, because some of its flows are not covered.
 
 **Why does the Diff flow tab show flows from files I did not touch?**
-A flow is included when its call site, its handler, its command mapping or its file changed. A change to one branch of `actionToCommand` therefore pulls in every flow of that action, wherever it is dispatched.
+A flow is included when its call site, its handler or its command mapping changed. A change to one branch of `actionToCommand` therefore pulls in every flow of that action, wherever it is dispatched.
 
 **A child component with two buttons calls the same callback prop. Why was it one flow?**
 It was merged. Now every place in the child that calls the prop is its own flow.

@@ -456,9 +456,7 @@ function buildFlows(coverage, runs, changed) {
         ? 'handler changed'
         : touched(COMMANDS_FILE, command.start, command.end)
           ? 'command mapping changed'
-          : changed[site.file]
-            ? 'file changed'
-            : null;
+          : null;
     return { id, ...rest, trigger, topic: command.topic, commandLine: command.line, changed: reason, status, stages };
   });
 

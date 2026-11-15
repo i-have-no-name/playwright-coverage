@@ -424,7 +424,7 @@ function flowView(panel, flows, intro, emptyText) {
 }
 
 flowView(panels.changed, changedFlows,
-  'Only flows touched by this diff: the dispatch call, its handler, its command mapping, or another line in the same file changed.',
+  'Only flows touched by this diff: the dispatch call, its handler or its command mapping changed.',
   DATA.diffError ?? 'No flow is touched by this diff.');
 flowView(panels.flows, DATA.flows, 'Every dispatch call site in the source, changed or not.', 'No flows found.');
 </script>

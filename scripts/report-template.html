@@ -8,11 +8,11 @@
   :root {
     color-scheme: light dark;
     --page: #f4f3ef; --surface: #fcfcfb; --text: #0b0b0b; --text-2: #52514e; --line: #e1e0d9;
-    --good: #0ca30c; --warn: #fab219; --crit: #d03b3b; --link: #1b5fc4; --test-link: #7b3fc4; --accent: #b0277a;
+    --good: #0ca30c; --warn: #fab219; --crit: #d03b3b; --link: #1b5fc4; --test-link: #7b3fc4; --accent: var(--link);
     --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   }
   @media (prefers-color-scheme: dark) {
-    :root { --page: #111110; --surface: #1a1a19; --text: #f0efec; --text-2: #c3c2b7; --line: #2c2c2a; --link: #8ab4f8; --test-link: #c4a1ff; --accent: #e879b9; }
+    :root { --page: #111110; --surface: #1a1a19; --text: #f0efec; --text-2: #c3c2b7; --line: #2c2c2a; --link: #8ab4f8; --test-link: #c4a1ff; }
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--page); color: var(--text); font: 14px/1.45 system-ui, sans-serif; }

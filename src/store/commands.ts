@@ -1,5 +1,6 @@
 import type { UnknownAction } from '@reduxjs/toolkit';
 import { joinRoom, leaveRoom, refresh, sendMessage, setStatus } from './actions';
+import { reactionAdded, reactionsCleared } from './reactions';
 
 export type Command = { topic: string; payload: Record<string, unknown> };
 
@@ -25,6 +26,14 @@ export function actionToCommand(action: UnknownAction): Command | null {
 
   if (refresh.match(action)) {
     return { topic: 'state.sync', payload: {} };
+  }
+
+  if (reactionAdded.match(action)) {
+    return { topic: 'reaction.add', payload: { emoji: action.payload } };
+  }
+
+  if (reactionsCleared.match(action)) {
+    return { topic: 'reaction.clear', payload: {} };
   }
 
   return null;

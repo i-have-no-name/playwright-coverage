@@ -13,3 +13,14 @@ test('footer: rejoin lobby', async ({ page }) => {
   await expect(page.getByText('room: lobby')).toBeVisible();
   await expect(acks(page)).toHaveText(['room.join', 'state.sync']);
 });
+
+test('footer: sub-footer: a', async ({ page }) => {
+  await openApp(page);
+  await page.getByRole('button', { name: 'handle-a' }).click();
+  await expect(page.getByText('room: none')).toBeVisible();
+});
+
+test('footer: sub-footer: b', async ({ page }) => {
+  await openApp(page);
+  await page.getByRole('button', { name: 'handle-b' }).click();
+});

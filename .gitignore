@@ -2,3 +2,5 @@ node_modules
 coverage-raw
 coverage-report
 test-results
+dist
+dist-coverage

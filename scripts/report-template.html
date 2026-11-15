@@ -8,11 +8,11 @@
   :root {
     color-scheme: light dark;
     --page: #f4f3ef; --surface: #fcfcfb; --text: #0b0b0b; --text-2: #52514e; --line: #e1e0d9;
-    --good: #0ca30c; --warn: #fab219; --crit: #d03b3b;
+    --good: #0ca30c; --warn: #fab219; --crit: #d03b3b; --link: #1b5fc4; --test-link: #7b3fc4;
     --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   }
   @media (prefers-color-scheme: dark) {
-    :root { --page: #111110; --surface: #1a1a19; --text: #f0efec; --text-2: #c3c2b7; --line: #2c2c2a; }
+    :root { --page: #111110; --surface: #1a1a19; --text: #f0efec; --text-2: #c3c2b7; --line: #2c2c2a; --link: #8ab4f8; --test-link: #c4a1ff; }
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--page); color: var(--text); font: 14px/1.45 system-ui, sans-serif; }
@@ -20,7 +20,7 @@
   h1 { font-size: 22px; margin: 0 0 2px; }
   .muted { color: var(--text-2); }
   code, .mono { font-family: var(--mono); font-size: 12.5px; }
-  a { color: inherit; text-underline-offset: 2px; }
+  a { color: var(--link); text-underline-offset: 2px; }
   .covered { --s: var(--good); } .partial { --s: var(--warn); } .uncovered { --s: var(--crit); } .neutral { --s: var(--line); }
   .glyph { color: var(--s); font-weight: 700; display: inline-block; width: 1.2em; text-align: center; }
 
@@ -49,8 +49,9 @@
   .diff tr.add:not(.neutral) { cursor: pointer; }
   .diff tr.add:not(.neutral):hover .code { background: color-mix(in srgb, var(--s) 24%, transparent); }
   .diff .count { color: var(--text-2); text-align: right; font-family: system-ui, sans-serif; }
-  .detail td { white-space: normal !important; font-family: system-ui, sans-serif !important; padding: 8px 14px 10px !important; border-left: 3px solid var(--s); background: var(--page); }
+  .detail td { white-space: normal !important; font-family: system-ui, sans-serif !important; padding: 8px 14px 10px !important; box-shadow: inset 3px 0 0 var(--s); background: var(--page); }
   .detail ul { margin: 4px 0 0; padding-left: 18px; }
+  .detail li a { color: var(--test-link); }
 
   .legend { display: flex; gap: 18px; flex-wrap: wrap; margin: 0 0 10px; }
   svg text { fill: var(--text); font: 12px system-ui, sans-serif; }
@@ -59,8 +60,9 @@
   svg .tgl rect { fill: var(--page); stroke: var(--text-2); stroke-width: 1; }
   svg .tgl text { fill: var(--text-2); font-weight: 700; }
   svg .tgl:hover rect { stroke: var(--text); }
-  .tip { width: fit-content; background: var(--surface); border: 1px solid var(--text-2); border-radius: 5px; padding: 2px 8px; line-height: 18px; white-space: nowrap; cursor: default; }
-  .tip.right { margin-left: auto; }
+  dialog { width: min(1120px, calc(100vw - 32px)); max-height: 85vh; padding: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--text); }
+  dialog::backdrop { background: rgb(0 0 0 / .45); }
+  dialog header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 16px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--surface); }
   svg .node .g { fill: var(--s); font-weight: 700; }
   svg .node .ratio { fill: var(--text-2); font-size: 11px; }
   svg .edge .v { fill: none; stroke: var(--s); stroke-width: 1.5; opacity: .75; }
@@ -80,6 +82,12 @@
   .flows tr.flow:hover td { background: var(--page); }
   .stage { display: inline-block; border: 1px solid var(--s); border-radius: 4px; padding: 0 6px 0 2px; margin: 0 4px 2px 0; font-size: 12px; white-space: nowrap; }
   .uncovered.stage { border-style: dashed; }
+  dialog header .chip { margin-left: auto; }
+  .menu { inset: auto; margin: 0; padding: 4px; gap: 2px; border: 1px solid color-mix(in srgb, var(--text) 25%, transparent); border-radius: 8px; background: color-mix(in srgb, var(--surface), var(--text) 8%); color: var(--text); box-shadow: 0 6px 20px rgb(0 0 0 / .35); }
+  .menu:popover-open { display: flex; }
+  .menu a, .menu button { font: inherit; font-size: 13px; color: var(--text); background: none; border: 0; border-radius: 5px; padding: 4px 10px; cursor: pointer; text-decoration: none; white-space: nowrap; }
+  .menu a:hover, .menu button:hover:enabled { background: color-mix(in srgb, var(--text) 14%, transparent); }
+  .menu button:disabled { color: var(--text-2); cursor: default; }
 </style>
 </head>
 <body>
@@ -110,10 +118,31 @@ function h(tag, props = {}, ...children) {
 const s = (tag, props, ...children) => h(tag, { ...props, svg: true }, ...children);
 const glyph = (status) => h('span', { class: `glyph ${status}`, 'aria-hidden': 'true' }, GLYPH[status]);
 const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
-const sourceUrl = (path, line) =>
-  DATA.linkTemplate.replaceAll('{abs}', `${DATA.root}/${path}`).replaceAll('{path}', path).replaceAll('{line}', line).replaceAll('{sha}', DATA.sha);
+const menu = h('div', { class: 'menu', popover: '' });
+function openMenu(anchor, path, line) {
+  const abs = `${DATA.root}/${path}`;
+  const item = (label, href, extra) => h('a', { href, onclick: () => menu.hidePopover(), ...extra }, label);
+  const copy = h('button', { onclick: () => navigator.clipboard.writeText(`${path}:${line}`).then(() => (copy.textContent = 'Copied')) }, 'Copy path');
+  menu.replaceChildren(
+    DATA.repo && DATA.sha
+      ? item('GitHub', `${DATA.repo}/blob/${DATA.sha}/${path}#L${line}`, { target: '_blank', rel: 'noopener' })
+      : h('button', { disabled: '', title: 'No origin remote; set REPO_URL' }, 'GitHub'),
+    item('VS Code', `vscode://file/${abs}:${line}`),
+    item('Cursor', `cursor://file/${abs}:${line}`),
+    copy);
+  (anchor.closest('dialog') ?? document.body).append(menu);
+  menu.showPopover();
+  const box = anchor.getBoundingClientRect();
+  menu.style.left = `${Math.max(8, Math.min(box.left, innerWidth - menu.offsetWidth - 8))}px`;
+  menu.style.top = `${box.bottom + 4 + menu.offsetHeight > innerHeight ? box.top - 4 - menu.offsetHeight : box.bottom + 4}px`;
+  menu.querySelector('a').focus();
+}
 const sourceLink = (path, line, prefix = '') =>
-  h('a', { class: 'mono', href: sourceUrl(path, line), onclick: (event) => event.stopPropagation() }, `${prefix}${path}:${line}`);
+  h('a', { class: 'mono', href: '#', onclick: (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    openMenu(event.currentTarget, path, line);
+  } }, `${prefix}${path}:${line}`);
 const testList = (tests) =>
   h('ul', {}, tests.map((index) => h('li', {}, DATA.tests[index].name, ' → ', sourceLink(DATA.tests[index].file, DATA.tests[index].line))));
 
@@ -133,6 +162,12 @@ document.getElementById('kpis').append(
   kpi('Changed lines executed by a test', `${changedCovered} / ${changed.length}`, meter(changedCovered, changed.length)),
   kpi('Flows touched by the diff reaching the socket', `${done(changedFlows)} / ${changedFlows.length}`, meter(done(changedFlows), changedFlows.length)),
   kpi('All flows reaching the socket', `${done(DATA.flows)} / ${DATA.flows.length}`, meter(done(DATA.flows), DATA.flows.length)));
+if (DATA.notes.length) {
+  document.getElementById('kpis').after(h('details', { class: 'card' },
+    h('summary', {}, glyph('partial'), `Scan notes (${DATA.notes.length})`, h('span', { class: 'muted' }, 'places where the flow scan may be incomplete')),
+    h('ul', { style: 'margin:0;padding:4px 14px 12px 36px' },
+      DATA.notes.map((note) => h('li', {}, note.text, note.file && [' → ', sourceLink(note.file, note.line)])))));
+}
 
 const TABS = [['diff', 'Diff coverage'], ['changed', 'Diff flow coverage'], ['flows', 'Flow coverage']];
 const panels = {};
@@ -148,9 +183,18 @@ TABS.forEach(([name, title], index) => {
 });
 
 // ---------- diff coverage ----------
+const detailRow = (status, content) => h('tr', { class: `detail ${status}` }, h('td', { colspan: 6 }, content));
 function toggleDetail(row, status, content) {
   if (row.nextSibling?.classList.contains('detail')) return row.nextSibling.remove();
-  row.after(h('tr', { class: `detail ${status}` }, h('td', { colspan: 6 }, content)));
+  row.after(detailRow(status, content));
+}
+
+const dialog = h('dialog', { onclick: (event) => event.target === dialog && dialog.close() });
+document.body.append(dialog);
+function openPopup(heading, body, onClose) {
+  dialog.replaceChildren(h('header', {}, heading, h('button', { class: 'chip', onclick: () => dialog.close() }, 'Close')), body);
+  dialog.onclose = onClose;
+  dialog.showModal();
 }
 
 function lineDetail(line) {
@@ -193,13 +237,51 @@ for (const file of DATA.diff) {
 
 // ---------- flow coverage (used for all flows and for flows touched by the diff) ----------
 const COLUMNS = [
-  { title: 'Component / place', x: 0, width: 160 },
-  { title: 'Handler / effect', x: 235, width: 215 },
-  { title: 'Action', x: 575, width: 160 },
-  { title: 'Command', x: 815, width: 175 },
+  { title: 'Component / place', x: 0, width: 175 },
+  { title: 'Handler / effect', x: 240, width: 215 },
+  { title: 'Action', x: 565, width: 185 },
+  { title: 'Command', x: 820, width: 175 },
   { title: 'Socket', x: 1070, width: 150 },
 ];
-const ROW = 30, BOX = 22, TOP = 34, TIP = 330;
+const fit = (label, width) => {
+  const max = Math.floor((width - 80) / 6);
+  return label.length > max ? `${label.slice(0, max - 1)}…` : label;
+};
+const ROW = 30, BOX = 22, TOP = 34;
+
+function flowDetail(flow) {
+  const broken = flow.stages.findIndex((stage) => !stage.tests.length);
+  if (broken === -1) return [`Reaches the socket in ${plural(flow.stages[4].tests.length, 'test')}:`, testList(flow.stages[4].tests)];
+  if (broken === 0) return 'No test runs this code at all.';
+  const last = flow.stages[broken - 1];
+  const everyTest = last.tests.length === DATA.tests.length;
+  return [`Gets as far as "${last.name}" but never reaches "${flow.stages[broken].name}". `,
+    everyTest ? `All ${DATA.tests.length} tests get that far.` : `${plural(last.tests.length, 'test')} ${last.tests.length === 1 ? 'gets' : 'get'} that far:`,
+    everyTest ? null : testList(last.tests)];
+}
+
+const flowTableHead = () =>
+  h('tr', {}, ['Status', 'Origin', 'Action', 'Command', 'How far tests get', 'End to end'].map((title) => h('th', {}, title)));
+
+function flowRows(flow, expanded = false) {
+  const row = h('tr', { class: 'flow', tabindex: 0 },
+    h('td', { style: 'white-space:nowrap' }, glyph(flow.status), WORD[flow.status]),
+    h('td', {}, h('b', {}, flow.place), ` › ${flow.handler}`,
+      h('div', { class: 'muted' },
+        flow.trigger && [sourceLink(flow.trigger.file, flow.trigger.line), ` calls ${flow.trigger.calls} → `],
+        sourceLink(flow.file, flow.line), flow.changed && ` · ${flow.changed}`)),
+    h('td', {}, h('code', {}, flow.action)),
+    h('td', {}, h('code', {}, flow.topic)),
+    h('td', {}, flow.stages.map((stage) => {
+      const status = stage.tests.length ? 'covered' : 'uncovered';
+      return h('span', { class: `stage ${status}` }, glyph(status), stage.name);
+    })),
+    h('td', { class: 'muted', style: 'white-space:nowrap' }, plural(flow.stages[4].tests.length, 'test')));
+  const open = () => toggleDetail(row, flow.status, flowDetail(flow));
+  row.addEventListener('click', open);
+  row.addEventListener('keydown', (event) => event.key === 'Enter' && open());
+  return expanded ? [row, detailRow(flow.status, flowDetail(flow))] : [row];
+}
 
 function flowView(panel, flows, intro, emptyText) {
   panel.append(h('p', { class: 'muted' }, intro));
@@ -210,8 +292,8 @@ function flowView(panel, flows, intro, emptyText) {
   for (const flow of flows) {
     const path = [
       [`p:${flow.file}:${flow.place}`, flow.place, flow.file, flow.placeLine],
-      [`h:${flow.file}:${flow.handlerLine}`, `${flow.handler} :${flow.handlerLine}`, flow.file, flow.handlerLine],
-      [`a:${flow.action}`, flow.action, DATA.actionsFile, flow.actionLine],
+      [`h:${flow.handlerFile}:${flow.handlerLine}`, `${flow.handler} :${flow.handlerLine}`, flow.handlerFile, flow.handlerLine],
+      [`a:${flow.action}`, flow.action, flow.actionFile, flow.actionLine],
       [`c:${flow.topic}`, flow.topic, DATA.commandsFile, flow.commandLine],
       ['s', 'WebSocket', DATA.socket.file, DATA.socket.line],
     ];
@@ -259,50 +341,44 @@ function flowView(panel, flows, intro, emptyText) {
   }
   for (const node of nodes.values()) {
     const column = COLUMNS[node.column];
-    const covered = done(node.flows);
-    const status = covered === node.flows.length ? 'covered' : covered ? 'partial' : 'uncovered';
     const sign = s('text', { x: 12, y: 15, 'text-anchor': 'middle' }, '+');
-    const toggleTip = (event) => {
+    const openNode = (event) => {
       event.stopPropagation();
-      if (node.tip) {
-        node.tip.remove();
-        node.tip = null;
-      } else {
-        const right = node.column > 2;
-        node.tip = s('foreignObject', { x: right ? column.width - TIP : 0, y: BOX + 3, width: TIP, height: 26 },
-          h('div', { class: `tip${right ? ' right' : ''}`, onclick: (click) => click.stopPropagation() }, sourceLink(node.file, node.line, './')));
-        node.el.append(node.tip);
-        graph.append(node.el);
-      }
-      sign.textContent = node.tip ? '−' : '+';
+      sign.textContent = '−';
+      openPopup(
+        [h('b', {}, node.label), sourceLink(node.file, node.line, './'),
+          h('span', { class: 'muted' }, `flows through it reaching the socket: ${done(node.flows)} of ${node.flows.length}`)],
+        h('div', { class: 'scroll' }, h('table', { class: 'flows' }, flowTableHead(), node.flows.flatMap((flow) => flowRows(flow, true)))),
+        () => (sign.textContent = '+'));
     };
-    node.el = s('g', { class: `node ${status}`, transform: `translate(${column.x},${node.y})`, onclick: pick(node, node.label) },
-      s('title', {}, `${node.label}: ${covered} of ${plural(node.flows.length, 'flow')} reach the socket`),
+    node.el = s('g', { class: 'node', transform: `translate(${column.x},${node.y})`, onclick: pick(node, node.label) },
+      s('title', {}, `${node.label}: ${done(node.flows)} of ${plural(node.flows.length, 'flow')} reach the socket`),
       s('rect', { class: 'box', width: column.width, height: BOX, rx: 5 }),
-      s('g', { class: 'tgl', onclick: toggleTip }, s('title', {}, 'Show source location'), s('rect', { x: 5, y: 4, width: 14, height: 14, rx: 3 }), sign),
-      s('text', { class: 'g', x: 28, y: 15, 'text-anchor': 'middle' }, GLYPH[status]),
-      s('text', { x: 38, y: 15 }, node.label),
-      s('text', { class: 'ratio', x: column.width - 8, y: 15, 'text-anchor': 'end' }, `${covered}/${node.flows.length}`));
+      s('g', { class: 'tgl', onclick: openNode }, s('title', {}, 'Open source location, flows and tests'), s('rect', { x: 5, y: 4, width: 14, height: 14, rx: 3 }), sign),
+      (node.glyphEl = s('text', { class: 'g', x: 28, y: 15, 'text-anchor': 'middle' })),
+      s('text', { x: 38, y: 15 }, fit(node.label, column.width)),
+      (node.ratioEl = s('text', { class: 'ratio', x: column.width - 8, y: 15, 'text-anchor': 'end' })));
     graph.append(node.el);
   }
 
   function select(next) {
     selection = next;
-    for (const item of [...nodes.values(), ...edges.values()]) {
-      item.el.classList.toggle('dim', !!selection && !item.flows.some((flow) => selection.ids.has(flow.id)));
+    // with a selection, colours and ratios count only the selected flows; the rest is dimmed
+    const selected = (list) => (selection ? list.filter((flow) => selection.ids.has(flow.id)) : list);
+    for (const edge of edges.values()) {
+      const live = selected(edge.flows);
+      edge.el.setAttribute('class', `edge ${reach(live.length ? live : edge.flows, edge.column)}${live.length ? '' : ' dim'}`);
+    }
+    for (const node of nodes.values()) {
+      const live = selected(node.flows);
+      const list = live.length ? live : node.flows;
+      const covered = done(list);
+      const status = covered === list.length ? 'covered' : covered ? 'partial' : 'uncovered';
+      node.el.setAttribute('class', `node ${status}${live.length ? '' : ' dim'}`);
+      node.glyphEl.textContent = GLYPH[status];
+      node.ratioEl.textContent = `${covered}/${list.length}`;
     }
     renderTable();
-  }
-
-  function flowDetail(flow) {
-    const broken = flow.stages.findIndex((stage) => !stage.tests.length);
-    if (broken === -1) return [`Reaches the socket in ${plural(flow.stages[4].tests.length, 'test')}:`, testList(flow.stages[4].tests)];
-    if (broken === 0) return 'No test runs this code at all.';
-    const last = flow.stages[broken - 1];
-    const everyTest = last.tests.length === DATA.tests.length;
-    return [`Gets as far as "${last.name}" but never reaches "${flow.stages[broken].name}". `,
-      everyTest ? `All ${DATA.tests.length} tests get that far.` : `${plural(last.tests.length, 'test')} ${last.tests.length === 1 ? 'gets' : 'get'} that far:`,
-      everyTest ? null : testList(last.tests)];
   }
 
   function renderTable() {
@@ -315,37 +391,19 @@ function flowView(panel, flows, intro, emptyText) {
       ...(selection ? [h('span', { class: 'muted' }, ` through ${selection.label} `), h('button', { class: 'chip', onclick: () => select(null) }, 'Clear selection')] : []));
     const rows = flows
       .filter((flow) => (statusFilter === 'all' || flow.status === statusFilter) && (!selection || selection.ids.has(flow.id)))
-      .map((flow) => {
-        const row = h('tr', { class: 'flow', tabindex: 0 },
-          h('td', { style: 'white-space:nowrap' }, glyph(flow.status), WORD[flow.status]),
-          h('td', {}, h('b', {}, flow.place), ` › ${flow.handler}`,
-            h('div', { class: 'muted' }, sourceLink(flow.file, flow.line), flow.changed && ` · ${flow.changed}`)),
-          h('td', {}, h('code', {}, flow.action)),
-          h('td', {}, h('code', {}, flow.topic)),
-          h('td', {}, flow.stages.map((stage) => {
-            const status = stage.tests.length ? 'covered' : 'uncovered';
-            return h('span', { class: `stage ${status}` }, glyph(status), stage.name);
-          })),
-          h('td', { class: 'muted', style: 'white-space:nowrap' }, plural(flow.stages[4].tests.length, 'test')));
-        const open = () => toggleDetail(row, flow.status, flowDetail(flow));
-        row.addEventListener('click', open);
-        row.addEventListener('keydown', (event) => event.key === 'Enter' && open());
-        return row;
-      });
-    table.replaceChildren(
-      h('tr', {}, ['Status', 'Origin', 'Action', 'Command', 'How far tests get', 'End to end'].map((title) => h('th', {}, title))),
-      ...(rows.length ? rows : [h('tr', {}, h('td', { colspan: 6, class: 'muted' }, 'No flows match.'))]));
+      .flatMap((flow) => flowRows(flow));
+    table.replaceChildren(flowTableHead(), ...(rows.length ? rows : [h('tr', {}, h('td', { colspan: 6, class: 'muted' }, 'No flows match.'))]));
   }
 
   panel.append(
     h('div', { class: 'legend muted' },
       h('span', {}, 'Nodes, flows through it that reach the socket:'),
       ...[['covered', 'all'], ['partial', 'some'], ['uncovered', 'none']].map(([status, word]) => h('span', {}, glyph(status), ` ${word}`)),
-      h('span', {}, '[+] shows where the node lives in the source.'),
+      h('span', {}, '[+] opens the source location, flows and tests of a node.'),
       h('span', {}, 'Edges: solid when tests travel along it, dashed red when none does.'),
-      h('span', {}, 'Click a node or edge to filter the table below.')),
+      h('span', {}, 'Click a node or edge: graph colours and the table narrow to the flows through it.')),
     h('div', { class: 'card scroll' }, graph), bar, h('div', { class: 'card scroll' }, table));
-  renderTable();
+  select(null);
 }
 
 flowView(panels.changed, changedFlows,

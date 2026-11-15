@@ -9,17 +9,19 @@ function SubHeader(props: any) {
       <button
         onClick={() => {
           props.onClick();
+          console.log('OK');
         }}
       >
-        handle click
+        handle click-1
       </button>
 
       <button
         onClick={() => {
           props.onClick();
+          console.log('not-OK');
         }}
       >
-        handle click
+        handle click-2
       </button>
     </div>
   );

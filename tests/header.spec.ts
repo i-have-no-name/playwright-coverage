@@ -21,3 +21,8 @@ test('header: go to support switches room', async ({ page }) => {
   await expect(page.getByText('room: support')).toBeVisible();
   await expect(acks(page)).toContainText(['room.leave', 'room.join', 'state.sync']);
 });
+
+test('header: handle-click-1', async ({ page }) => {
+  await openApp(page);
+  await page.getByRole('button', { name: 'handle click-1' }).click();
+});

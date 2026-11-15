@@ -1,6 +1,31 @@
+import { throws } from 'node:assert';
 import { joinRoom, leaveRoom, sendMessage, setStatus } from '../store/actions';
 import { useAppDispatch, useAppSelector } from '../store/store';
 import { announce } from '../store/thunks';
+
+function SubFooter(props: any) {
+  return (
+    <div>
+      <h2>Footer</h2>
+      <button
+        type="button"
+        onClick={() => {
+          props.a();
+        }}
+      >
+        handle-a
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          props.b();
+        }}
+      >
+        handle-b
+      </button>
+    </div>
+  );
+}
 
 export function Footer() {
   const dispatch = useAppDispatch();
@@ -25,6 +50,16 @@ export function Footer() {
       <button onClick={() => dispatch(leaveRoom())}>Leave room</button>
       <button onClick={() => dispatch(joinRoom('lobby'))}>Rejoin lobby</button>
       <button onClick={() => dispatch(announce('hello everyone'))}>Announce</button>
+
+      <SubFooter
+        a={() => {
+          dispatch(leaveRoom());
+        }}
+        b={() => {
+          dispatch(joinRoom('lobby'));
+          throw new Error();
+        }}
+      />
     </footer>
   );
 }

@@ -1,5 +1,5 @@
 {
-  "name": "int-test-fabel",
+  "name": "playwright-coverage",
   "private": true,
   "type": "module",
   "scripts": {

@@ -44,12 +44,17 @@
   .diff .no { color: var(--text-2); text-align: right; user-select: none; width: 1%; }
   .diff .code { width: 100%; }
   .diff .hunk td { color: var(--text-2); background: var(--page); }
-  .diff .del .code, .diff .del .mark { background: color-mix(in srgb, var(--crit) 13%, transparent); }
-  .diff tr.add .code, .diff tr.add .mark { background: color-mix(in srgb, var(--good) 13%, transparent); }
   .diff tr.add:not(.neutral) .count { background: color-mix(in srgb, var(--s) 24%, transparent); }
-  .diff tr.add:is(.uncovered, .partial) td:first-child { box-shadow: inset 3px 0 0 var(--s); }
   .diff tr.add:not(.neutral) { cursor: pointer; }
-  .diff tr.add:not(.neutral):hover .code, .diff tr.add:not(.neutral):hover .mark { background: color-mix(in srgb, var(--s) 24%, transparent); }
+  section:not(.as-diff) .diff :is(.del, td.no:first-child, .mark, tbody:not(:has(.add))) { display: none; }
+  section:not(.as-diff) .diff tr.add td:nth-child(2) { box-shadow: inset 3px 0 0 var(--s); }
+  section:not(.as-diff) .diff tr.add.neutral td:nth-child(2) { box-shadow: inset 3px 0 0 color-mix(in srgb, var(--text-2) 45%, transparent); }
+  section:not(.as-diff) .diff tr.add:is(.uncovered, .partial) .code { background: color-mix(in srgb, var(--s) 13%, transparent); }
+  section:not(.as-diff) .diff tr.add:not(.neutral):hover .code { background: color-mix(in srgb, var(--s) 24%, transparent); }
+  .as-diff .diff .del :is(.code, .mark) { background: color-mix(in srgb, var(--crit) 13%, transparent); }
+  .as-diff .diff tr.add :is(.code, .mark) { background: color-mix(in srgb, var(--good) 13%, transparent); }
+  .as-diff .diff tr.add:is(.uncovered, .partial) td:first-child { box-shadow: inset 3px 0 0 var(--s); }
+  .as-diff .diff tr.add:not(.neutral):hover :is(.code, .mark) { background: color-mix(in srgb, var(--s) 24%, transparent); }
   .diff .count { color: var(--text-2); font-family: system-ui, sans-serif; }
   .detail td { white-space: normal !important; font-family: system-ui, sans-serif !important; padding: 8px 14px 10px !important; box-shadow: inset 3px 0 0 var(--s); background: var(--page); }
   .detail ul { margin: 4px 0 0; padding-left: 18px; }
@@ -226,15 +231,25 @@ function diffRow(line) {
 
 if (DATA.diffError) panels.diff.append(h('p', {}, DATA.diffError));
 else if (!DATA.diff.length) panels.diff.append(h('p', { class: 'muted' }, 'No source changes against the base.'));
+if (DATA.diff.length) {
+  const toggle = h('button', { class: 'chip', 'aria-pressed': false,
+    onclick: () => toggle.setAttribute('aria-pressed', panels.diff.classList.toggle('as-diff')) }, 'Show as diff');
+  panels.diff.append(h('div', { class: 'bar' }, toggle));
+}
 for (const file of DATA.diff) {
   const lines = file.lines.filter((line) => line.type === '+' && line.status !== 'neutral');
   const covered = lines.filter((line) => line.status === 'covered').length;
   const status = !lines.length ? 'neutral' : covered === lines.length ? 'covered' : covered ? 'partial' : 'uncovered';
+  const hunks = [];
+  for (const line of file.lines) {
+    if (line.type === '@' || !hunks.length) hunks.push([]);
+    hunks.at(-1).push(line);
+  }
   panels.diff.append(h('details', { class: 'card', open: '' },
     h('summary', {}, glyph(status), h('code', {}, file.path),
       h('span', { class: 'muted' }, lines.length ? `${covered} of ${lines.length} changed lines covered` : 'no executable changes'),
       meter(covered, lines.length)),
-    h('div', { class: 'scroll' }, h('table', { class: 'diff' }, file.lines.map(diffRow)))));
+    h('div', { class: 'scroll' }, h('table', { class: 'diff' }, hunks.map((hunk) => h('tbody', {}, hunk.map(diffRow)))))));
 }
 
 // ---------- flow coverage (used for all flows and for flows touched by the diff) ----------

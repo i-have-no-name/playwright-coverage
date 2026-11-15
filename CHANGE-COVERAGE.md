@@ -101,7 +101,7 @@ Three tabs:
 
 | Tab | Content |
 |---|---|
-| Diff coverage | The diff per file. Each added line is marked ✓ covered, ◐ partly covered or ✕ not covered. Click a line to see the tests, with links to `tests/file.spec.ts:line` |
+| Diff coverage | The changed hunks per file. Each added line is marked ✓ covered, ◐ partly covered or ✕ not covered, and lines that no test fully runs are highlighted. Deleted lines are hidden; "Show as diff" brings them back with git colours. Click a line to see the tests, with links to `tests/file.spec.ts:line` |
 | Diff flow coverage | Only the flows touched by the diff, with the reason each one is included |
 | Flow coverage | Every flow in the app, changed or not |
 
